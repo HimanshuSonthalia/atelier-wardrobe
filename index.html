@@ -500,6 +500,10 @@
             <p class="font-serif text-xl font-semibold text-white">Select Garment Portraits</p>
             <input id="bulkFileInput" type="file" accept="image/*" multiple class="hidden" onchange="handleBulkFilesSelected(event)" />
           </label>
+          <!-- NEW: Clipboard Paste Button -->
+          <button onclick="handleClipboardPaste()" class="w-full py-3.5 rounded-2xl bg-plumcard hover:bg-plumlight border border-champagne/30 hover:border-champagne text-goldlight text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2 shadow-sm transition">
+            <i data-lucide="clipboard-paste" class="w-4 h-4"></i> Paste Copied Image
+          </button>
         </div>
 
         <!-- TAB B: Web Link Zone -->

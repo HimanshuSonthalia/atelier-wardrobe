@@ -345,6 +345,57 @@ async function handleWebLinksIngest() {
   progressBar.style.width = '0%';
   await refreshAllViews();
 }
+
+// --- NEW: DIRECT CLIPBOARD IMAGE PASTE ---
+async function handleClipboardPaste() {
+  try {
+    const clipboardItems = await navigator.clipboard.read();
+    let foundImage = false;
+    
+    for (const clipboardItem of clipboardItems) {
+      // Look for any image data on the clipboard
+      const imageTypes = clipboardItem.types.filter(type => type.startsWith('image/'));
+      
+      for (const imageType of imageTypes) {
+        const blob = await clipboardItem.getType(imageType);
+        const file = new File([blob], "pasted_image.png", { type: blob.type });
+
+        // Grab location & price settings
+        const defaultLoc = document.getElementById('ingestDefaultLocation').value.trim() || 'Online Order';
+        const priceVal = parseFloat(document.getElementById('ingestPrice').value) || 0;
+
+        // Show UI Progress
+        const progressWrap = document.getElementById('ingestProgressWrap');
+        progressWrap.classList.remove('hidden');
+        document.getElementById('ingestProgressText').textContent = `Analyzing pasted image...`;
+        document.getElementById('ingestProgressBar').style.width = `50%`;
+
+        // Run through standard pipeline
+        const processed = await processImageFile(file, true);
+        const extractedData = await analyzeGarmentWithGeminiMulti([processed.originalDataUrl.split(',')[1]]);
+        await createAndSaveItemRecord(extractedData, [processed], defaultLoc, priceVal, 'Clipboard Paste');
+
+        document.getElementById('ingestProgressBar').style.width = `100%`;
+        showToast('Pasted image archived successfully!');
+        await refreshAllViews();
+        foundImage = true;
+        
+        // Hide progress bar after 1 second
+        setTimeout(() => progressWrap.classList.add('hidden'), 1000);
+        break;
+      }
+      if (foundImage) break;
+    }
+    
+    if (!foundImage) {
+      showToast('No image found on clipboard. Copy an image first!');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Clipboard access denied. Please allow clipboard permissions.');
+  }
+}
+
 async function analyzeGarmentWithGeminiMulti(base64Array) {
   if (!state.profile.geminiKey) return {};
   
