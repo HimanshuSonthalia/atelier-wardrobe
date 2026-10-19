@@ -704,19 +704,19 @@ async function renderStudioBoard() {
 
   const slotConfigs = state.studioMode === 'full'
     ? [
-        { key: 'full', label: 'Saree / Dress / Full', cats: ['drape', 'dress'] },
-        { key: 'outer', label: 'Layer / Shawl / Jacket', cats: ['outer'] },
+        { key: 'full', label: 'Saree / Gown / Ensemble', cats: ['drape', 'dress'] },
+        { key: 'outer', label: 'Shawl / Layer / Dupatta', cats: ['outer'] },
         { key: 'jewellery', label: 'Fine Jewellery', cats: ['jewellery'] },
         { key: 'footwear', label: 'Footwear', cats: ['footwear'] },
-        { key: 'bag', label: 'Handbag / Clutch', cats: ['bag'] }
+        { key: 'bag', label: 'Miniaudiere / Potli', cats: ['bag'] }
       ]
     : [
-        { key: 'top', label: 'Top / Kurti / Blouse', cats: ['top'] },
-        { key: 'bottom', label: 'Bottom / Trousers / Skirt', cats: ['bottom'] },
-        { key: 'outer', label: 'Jacket / Dupatta', cats: ['outer'] },
+        { key: 'top', label: 'Top / Kurti / Choli', cats: ['top'] },
+        { key: 'bottom', label: 'Trousers / Skirt / Bottom', cats: ['bottom'] },
+        { key: 'outer', label: 'Jacket / Dupatta / Cape', cats: ['outer'] },
         { key: 'jewellery', label: 'Fine Jewellery', cats: ['jewellery'] },
         { key: 'footwear', label: 'Footwear', cats: ['footwear'] },
-        { key: 'bag', label: 'Handbag / Clutch', cats: ['bag'] }
+        { key: 'bag', label: 'Handbag / Potli', cats: ['bag'] }
       ];
 
   const container = document.getElementById('slotMachineContainer');
@@ -724,28 +724,28 @@ async function renderStudioBoard() {
     const currentItem = itemMap[state.studioSlots[sc.key]];
     const isLocked = state.lockedSlots[sc.key];
     return `
-      <div class="slot-card rounded-2xl border border-stone-200 p-2.5 flex flex-col justify-between bg-stone-50/50 ${isLocked ? 'locked' : ''}">
-        <div class="flex items-center justify-between text-[10px] font-bold uppercase text-stone-500 mb-1">
-          <span>${sc.label}</span>
-          <button onclick="toggleSlotLock('${sc.key}')" class="px-1.5 py-0.5 rounded ${isLocked ? 'bg-amber-500 text-stone-950' : 'bg-stone-200 text-stone-600'}">
-            ${isLocked ? '🔒 Locked' : 'Unlock'}
+      <div class="slot-card rounded-2xl p-3 flex flex-col justify-between ${isLocked ? 'locked' : ''}">
+        <div class="flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-1.5">
+          <span class="truncate pr-1">${sc.label}</span>
+          <button onclick="toggleSlotLock('${sc.key}')" class="px-2 py-0.5 rounded-full transition ${isLocked ? 'bg-obsidian text-goldlight border border-champagne' : 'bg-silk text-stone-500 hover:text-obsidian'}">
+            ${isLocked ? 'Pinned' : 'Pin'}
           </button>
         </div>
 
-        <div class="h-32 cutout-bg rounded-xl flex items-center justify-center p-2 relative">
+        <div class="h-36 cutout-bg rounded-xl flex items-center justify-center p-2.5 relative border border-stone-200/50">
           ${currentItem
-            ? `<img src="${currentItem.active_img}" class="max-h-full max-w-full object-contain" />
-               <span class="absolute bottom-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-stone-900/75 text-white truncate max-w-[90%]">📍 ${currentItem.storage_location || 'Closet'}</span>`
-            : `<span class="text-[11px] text-stone-400">Optional / Empty</span>`
+            ? `<img src="${currentItem.active_img}" class="max-h-full max-w-full object-contain drop-shadow-sm" />
+               <span class="absolute bottom-1.5 left-1.5 text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-obsidian/80 text-goldlight truncate max-w-[90%]">${currentItem.storage_location || 'Vault'}</span>`
+            : `<span class="font-serif italic text-xs text-stone-400">Optional Layer</span>`
           }
         </div>
 
-        <div class="mt-2 flex items-center justify-between gap-1">
-          <button onclick="cycleStudioSlot('${sc.key}', -1)" class="p-1.5 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 text-xs">◀</button>
-          <div class="text-center truncate flex-1 cursor-pointer" onclick="${currentItem ? `openItemDetailModal('${currentItem.id}')` : ''}">
-            <p class="text-[11px] font-bold text-stone-800 truncate">${currentItem ? currentItem.name : 'None Selected'}</p>
+        <div class="mt-2.5 flex items-center justify-between gap-1">
+          <button onclick="cycleStudioSlot('${sc.key}', -1)" class="w-7 h-7 rounded-full bg-alabaster border border-stone-200 hover:border-champagne text-obsidian flex items-center justify-center text-[10px] transition">&larr;</button>
+          <div class="text-center truncate flex-1 px-1 cursor-pointer" onclick="${currentItem ? `openItemDetailModal('${currentItem.id}')` : ''}">
+            <p class="font-serif text-sm font-semibold text-obsidian truncate">${currentItem ? currentItem.name : 'Unselected'}</p>
           </div>
-          <button onclick="cycleStudioSlot('${sc.key}', 1)" class="p-1.5 rounded-lg bg-white border border-stone-200 hover:bg-stone-100 text-xs">▶</button>
+          <button onclick="cycleStudioSlot('${sc.key}', 1)" class="w-7 h-7 rounded-full bg-alabaster border border-stone-200 hover:border-champagne text-obsidian flex items-center justify-center text-[10px] transition">&rarr;</button>
         </div>
       </div>
     `;
