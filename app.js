@@ -258,6 +258,7 @@ async function handleBulkFilesSelected(event) {
   await refreshAllViews();
 }
 // --- 3. NEW: Web Link Importer (Bypassing CORS via free proxy) ---
+// --- CRASH-PROOF WEB LINK IMPORTER (MULTI-IMAGE & AMAZON FALLBACK) ---
 async function handleWebLinksIngest() {
   const linksRaw = document.getElementById('ingestWebLinks').value;
   const links = linksRaw.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
@@ -266,44 +267,83 @@ async function handleWebLinksIngest() {
   const defaultLoc = document.getElementById('ingestDefaultLocation').value.trim() || 'Online Order';
   const priceVal = parseFloat(document.getElementById('ingestPrice').value) || 0;
   
-  document.getElementById('ingestProgressWrap').classList.remove('hidden');
+  const progressWrap = document.getElementById('ingestProgressWrap');
+  const progressText = document.getElementById('ingestProgressText');
+  const progressBar = document.getElementById('ingestProgressBar');
+  progressWrap.classList.remove('hidden');
 
   for (let i = 0; i < links.length; i++) {
-    document.getElementById('ingestProgressText').textContent = `Scraping link ${i + 1} of${links.length}...`;
-    document.getElementById('ingestProgressBar').style.width = `${Math.round(((i + 1) / links.length) * 100)}%`;
+    progressText.textContent = `Scraping link ${i + 1} of ${links.length}...`;
+    progressBar.style.width = `${Math.round(((i + 1) / links.length) * 100)}%`;
 
     try {
-      // Use AllOrigins to bypass CORS and fetch the HTML of the product page
+      // Use AllOrigins to bypass CORS
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(links[i])}`;
       const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error("Proxy failed");
       const data = await res.json();
+      const html = data.contents;
       
-      // Regex to find OpenGraph Image (<meta property="og:image" content="URL">)
-      const match = data.contents.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i) || 
-                    data.contents.match(/<img[^>]*src="([^"]+)"[^>]*>/i); // Fallback to first img
-                    
-      if (match && match[1]) {
-        let imgUrl = match[1];
-        if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl; // Fix protocol-less URLs
+      // Amazon/Bot-protected site check
+      if (html.includes('captcha') || html.includes('automated access')) {
+        showToast('Site blocked scraper. Use Photo Upload for Amazon.');
+        continue; // Skip this link safely without crashing
+      }
 
-        // Fetch image via proxy to avoid Canvas taint
-        const imgBlobProxy = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
-        const imgRes = await fetch(imgBlobProxy);
-        const blob = await imgRes.blob();
-        const file = new File([blob], "web_import.jpg", { type: blob.type });
+      // Extract multiple images using Regex (filtering out tiny icons/gifs)
+      const imgRegex = /<img[^>]+src="([^">]+)"/gi;
+      let match;
+      let validImgUrls = [];
+      
+      // Also check for OpenGraph main image
+      const ogMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i);
+      if (ogMatch && ogMatch[1]) validImgUrls.push(ogMatch[1]);
 
-        const processed = await processImageFile(file, true);
-        const extractedData = await analyzeGarmentWithGeminiMulti([processed.originalDataUrl.split(',')[1]]);
+      while ((match = imgRegex.exec(html)) !== null) {
+        let src = match[1];
+        if (src.startsWith('//')) src = 'https:' + src;
+        if (!src.startsWith('http')) continue;
+        if (src.includes('.gif') || src.toLowerCase().includes('icon') || src.toLowerCase().includes('logo')) continue;
+        validImgUrls.push(src);
+      }
+
+      // Deduplicate and limit to top 4 images to save Gemini processing time
+      validImgUrls = [...new Set(validImgUrls)].slice(0, 4);
+
+      if (validImgUrls.length > 0) {
+        progressText.textContent = `Extracting ${validImgUrls.length} angles via Gemini...`;
         
-        await createAndSaveItemRecord(extractedData, [processed], defaultLoc, priceVal, links[i]);
+        let processedImgs = [];
+        for (const imgUrl of validImgUrls) {
+          try {
+            // Fetch image via proxy to avoid Canvas taint
+            const imgBlobProxy = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
+            const imgRes = await fetch(imgBlobProxy);
+            const blob = await imgRes.blob();
+            const file = new File([blob], "web_import.jpg", { type: blob.type });
+            processedImgs.push(await processImageFile(file, true));
+          } catch(e) { console.warn('Failed one image:', e); }
+        }
+
+        if (processedImgs.length > 0) {
+          const base64Array = processedImgs.map(p => p.originalDataUrl.split(',')[1]);
+          const extractedData = await analyzeGarmentWithGeminiMulti(base64Array);
+          await createAndSaveItemRecord(extractedData, processedImgs, defaultLoc, priceVal, links[i]);
+        }
+      } else {
+        showToast('No usable images found on that page.');
       }
     } catch (e) {
-      console.warn('Failed to scrape link:', links[i], e);
+      console.error('Failed to scrape link:', links[i], e);
+      showToast('Scrape failed. Try uploading photos.');
     }
   }
+  
+  // FINALLY block equivalent: ensure UI resets
   document.getElementById('ingestWebLinks').value = '';
+  progressWrap.classList.add('hidden');
+  progressBar.style.width = '0%';
   await refreshAllViews();
-  showToast('Web Links Imported!');
 }
 async function analyzeGarmentWithGeminiMulti(base64Array) {
   if (!state.profile.geminiKey) return {};

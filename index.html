@@ -189,6 +189,9 @@
               <option value="cool">Climate &middot; Crisp Evening / Lounge</option>
               <option value="cold">Climate &middot; Winter Cashmere &amp; Layers</option>
             </select>
+            <button onclick="autoDetectWeather()" class="ml-2 px-3 py-2 rounded-full bg-plumcard border border-champagne/40 hover:border-champagne text-champagne text-[10px] font-bold tracking-widest uppercase transition flex items-center gap-1.5" title="Auto-detect local weather">
+              <i data-lucide="cloud-lightning" class="w-3.5 h-3.5"></i> Auto
+            </button>
             <select id="studioMode" onchange="toggleStudioGarmentMode()" class="bg-plumcard text-goldlight border border-champagne/50 rounded-full px-4 py-2 text-xs font-medium tracking-wide focus:outline-none">
               <option value="separates">Silhouette &middot; Separates (Top + Bottom)</option>
               <option value="full">Silhouette &middot; Saree / Gown / Full Ensemble</option>
@@ -388,28 +391,67 @@
 
   </main>
 
-  <!-- FLOATING HAUTE-COUTURE GLASS DOCK (Bottom Navigation) -->
+<!-- ================= TAB 5: WARDROBE DNA & CALENDAR (NEW) ================= -->
+    <section id="tab-insights" class="tab-view hidden space-y-6">
+      <div class="luxury-card p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-champagne/20">
+          <div>
+            <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Sartorial Analytics</span>
+            <h2 class="font-serif text-2xl font-semibold text-white">Wardrobe DNA</h2>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-plumlight p-4 rounded-2xl border border-champagne/30 text-center">
+            <p class="text-[10px] uppercase tracking-widest text-stone-400 mb-1">Total Investment</p>
+            <p id="dnaTotalValue" class="font-serif text-2xl font-semibold text-goldlight">$0</p>
+          </div>
+          <div class="bg-plumlight p-4 rounded-2xl border border-champagne/30 text-center">
+            <p class="text-[10px] uppercase tracking-widest text-stone-400 mb-1">Avg Cost Per Wear</p>
+            <p id="dnaAvgCpw" class="font-serif text-2xl font-semibold text-emerald-400">$0.00</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="luxury-card p-5">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-champagne/20">
+          <div>
+            <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">The Style Diary</span>
+            <h2 class="font-serif text-2xl font-semibold text-white">OOTD Calendar</h2>
+          </div>
+        </div>
+        <div id="calendarGrid" class="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-stone-400">
+          <!-- Calendar populated by JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FLOATING HAUTE-COUTURE GLASS DOCK (5 Tabs) -->
   <nav class="fixed bottom-4 inset-x-0 z-30 px-4 pointer-events-none">
-    <div class="max-w-md mx-auto luxury-dock rounded-full p-1.5 grid grid-cols-4 gap-1 pointer-events-auto">
+    <div class="max-w-lg mx-auto luxury-dock rounded-full p-1.5 grid grid-cols-5 gap-1 pointer-events-auto">
       <button onclick="switchTab('closet')" data-tab="closet" class="nav-btn active flex flex-col items-center py-2 rounded-full transition-all">
         <i data-lucide="layout-grid" class="w-4 h-4"></i>
-        <span class="text-[9px] font-semibold tracking-widest uppercase mt-1">Archive</span>
+        <span class="text-[8px] font-semibold tracking-widest uppercase mt-1">Archive</span>
       </button>
       <button onclick="switchTab('studio')" data-tab="studio" class="nav-btn flex flex-col items-center py-2 rounded-full transition-all">
         <i data-lucide="wand-2" class="w-4 h-4"></i>
-        <span class="text-[9px] font-semibold tracking-widest uppercase mt-1">Salon</span>
+        <span class="text-[8px] font-semibold tracking-widest uppercase mt-1">Salon</span>
       </button>
       <button onclick="switchTab('lookbook')" data-tab="lookbook" class="nav-btn flex flex-col items-center py-2 rounded-full transition-all">
         <i data-lucide="book-open" class="w-4 h-4"></i>
-        <span class="text-[9px] font-semibold tracking-widest uppercase mt-1">Lookbook</span>
+        <span class="text-[8px] font-semibold tracking-widest uppercase mt-1">Lookbook</span>
       </button>
       <button onclick="switchTab('beauty')" data-tab="beauty" class="nav-btn flex flex-col items-center py-2 rounded-full transition-all">
         <i data-lucide="sparkles" class="w-4 h-4"></i>
-        <span class="text-[9px] font-semibold tracking-widest uppercase mt-1">Vanity</span>
+        <span class="text-[8px] font-semibold tracking-widest uppercase mt-1">Vanity</span>
+      </button>
+      <button onclick="switchTab('insights')" data-tab="insights" class="nav-btn flex flex-col items-center py-2 rounded-full transition-all">
+        <i data-lucide="pie-chart" class="w-4 h-4"></i>
+        <span class="text-[8px] font-semibold tracking-widest uppercase mt-1">DNA</span>
       </button>
     </div>
   </nav>
-
   <!-- ================= MODAL 1: BULK INGESTION & AUTO-TAGGER ================= -->
   <!-- ================= MODAL 1: ACQUIRE & DIGITIZE (Multi-Angle & URL Support) ================= -->
   <div id="ingestModal" class="modal-backdrop hidden">
