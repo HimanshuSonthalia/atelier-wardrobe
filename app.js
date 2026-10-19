@@ -2227,15 +2227,31 @@ async function runAIAuditor() {
 }
 
 // --- ON-DEMAND AI CUTOUT REFINEMENT ---
+// --- ON-DEMAND AI CUTOUT REFINEMENT (FIXED) ---
 async function regenerateCutout(id) {
   const item = await db.garments.get(id);
   showToast('AI Auditor is refining the cutout. Please wait...');
   
   try {
     const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
-    const res = await fetch(item.original_img);
-    const blob = await res.blob();
-    const cutoutBlob = await imglyRemoveBackground(blob);
+    
+    // 1. Safely convert Base64 Data URL to Blob (bypasses fetch limits)
+    const base64Data = item.original_img.split(',')[1];
+    const mimeType = item.original_img.match(/data:([^;]+);/)[1];
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
+    
+    // 2. Explicitly define the path for the AI models so they don't 404 error
+    const config = {
+      publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/'
+    };
+
+    // 3. Run the AI
+    const cutoutBlob = await imglyRemoveBackground(blob, config);
     
     const cutoutDataUrl = await new Promise(r => {
       const reader = new FileReader();
@@ -2243,6 +2259,7 @@ async function regenerateCutout(id) {
       reader.readAsDataURL(cutoutBlob);
     });
     
+    // 4. Save and Update UI
     item.cutout_img = cutoutDataUrl;
     item.active_img = cutoutDataUrl;
     await db.garments.put(item);
@@ -2250,7 +2267,9 @@ async function regenerateCutout(id) {
     openItemDetailModal(id);
     renderCloset();
     showToast('Cutout perfected!');
+    
   } catch (e) {
+    console.error("Refine Error:", e);
     showToast('Failed to refine cutout.');
   }
 }
