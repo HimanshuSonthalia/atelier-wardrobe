@@ -27,7 +27,7 @@ const state = {
     footwear: null,
     jewellery: null,
     bag: null,
-    geminiKey: localStorage.getItem('atelier_gemini_key') || 'AQ.Ab8RN6KMkvg3Q_XK2MuBHm05ccjRcSQLaA_NmIMyOoN4P8oknA',
+    geminiKey: localStorage.getItem('atelier_gemini_key') || '',
     geminiModel: localStorage.getItem('atelier_gemini_model') || 'gemini-2.5-flash',
     syncUrl: localStorage.getItem('atelier_sync_url') || 'https://script.google.com/macros/s/AKfycbyIpq5V3MV4tDVi-rmOUPLcuy153gCFY8xFYmeh_l5er4i8xKxeQgqg3cWrhxUWlDbDzA/exec'
   },
@@ -94,6 +94,14 @@ function showToast(msg) {
   document.getElementById('toastMsg').textContent = msg;
   t.classList.remove('hidden');
   setTimeout(() => t.classList.add('hidden'), 2800);
+}
+// --- 1. NEW: Ingestion UI Tab Switcher ---
+function switchIngestTab(tab) {
+  const isUpload = tab === 'upload';
+  document.getElementById('ingestViewUpload').classList.toggle('hidden', !isUpload);
+  document.getElementById('ingestViewLink').classList.toggle('hidden', isUpload);
+  document.getElementById('ingestTabUpload').className = isUpload ? 'px-4 py-2 rounded-full bg-champagne text-plum font-semibold text-xs tracking-wider uppercase' : 'px-4 py-2 rounded-full bg-plumcard text-stone-400 hover:text-goldlight font-semibold text-xs tracking-wider uppercase transition';
+  document.getElementById('ingestTabLink').className = !isUpload ? 'px-4 py-2 rounded-full bg-champagne text-plum font-semibold text-xs tracking-wider uppercase' : 'px-4 py-2 rounded-full bg-plumcard text-stone-400 hover:text-goldlight font-semibold text-xs tracking-wider uppercase transition';
 }
 
 // ============================================================================
@@ -209,96 +217,167 @@ async function handleBulkFilesSelected(event) {
   const files = Array.from(event.target.files);
   if (!files.length) return;
 
-  const defaultLoc = document.getElementById('ingestDefaultLocation').value.trim() || 'Main Wardrobe';
-  const autoCutout = document.getElementById('ingestAutoCutout').checked;
-  const useGemini = document.getElementById('ingestUseGemini').checked && state.profile.geminiKey;
+  const defaultLoc = document.getElementById('ingestDefaultLocation').value.trim() || 'Wardrobe';
+  const priceVal = parseFloat(document.getElementById('ingestPrice').value) || 0;
+  const isMultiAngle = document.getElementById('ingestMultiAngleToggle').checked;
 
-  const progressWrap = document.getElementById('ingestProgressWrap');
-  const progressText = document.getElementById('ingestProgressText');
-  const progressBar = document.getElementById('ingestProgressBar');
-  const reviewGrid = document.getElementById('ingestReviewGrid');
+  document.getElementById('ingestProgressWrap').classList.remove('hidden');
 
-  progressWrap.classList.remove('hidden');
+  if (isMultiAngle) {
+    // Process all files as ONE item
+    document.getElementById('ingestProgressText').textContent = `Merging ${files.length} angles into 1 item...`;
+    document.getElementById('ingestProgressBar').style.width = `50%`;
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    const pct = Math.round(((i + 1) / files.length) * 100);
-    progressText.textContent = `Processing ${i + 1} of ${files.length}: ${file.name}`;
-    progressBar.style.width = `${pct}%`;
-
-    const { originalDataUrl, cutoutDataUrl, dominantHex } = await processImageFile(file, autoCutout);
-
-    let aiAttrs = {
-      name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-      category: 'top',
-      subcategory: 'Garment',
-      brand: '',
-      sku: '',
-      color_name: 'Neutral',
-      undertone: 'warm',
-      pattern: 'Solid',
-      fabric: 'Cotton / Silk Blend',
-      silhouette: 'balanced',
-      neckline: 'v_neck',
-      formality: 3,
-      occasions: ['Casual Chic', 'Festive & Ethnic'],
-      scale_ref_cm: 0
-    };
-
-    if (useGemini) {
-      try {
-        const extracted = await analyzeGarmentWithGemini(originalDataUrl);
-        if (extracted) aiAttrs = { ...aiAttrs, ...extracted };
-        // Respect free tier ~12-15 RPM when batching multiple items
-        if (files.length > 3 && i < files.length - 1) {
-          await new Promise(r => setTimeout(r, 3800));
-        }
-      } catch (err) {
-        console.warn('Gemini fallback to local heuristics:', err);
-      }
+    const processedImgs = [];
+    for (const f of files) {
+      processedImgs.push(await processImageFile(f, true));
     }
 
-    const id = 'GAR-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random() * 90 + 10);
-    const garmentRecord = {
-      id,
-      name: aiAttrs.name || 'Styled Piece',
-      category: aiAttrs.category || 'top', // top, bottom, drape, dress, outer, footwear, jewellery, bag
-      subcategory: aiAttrs.subcategory || '',
-      brand: aiAttrs.brand || '',
-      sku: aiAttrs.sku || '',
-      original_img: originalDataUrl,
-      cutout_img: cutoutDataUrl,
-      studio_upgrade_img: '',
-      active_img: cutoutDataUrl,
-      retail_match_status: aiAttrs.brand ? 'candidate' : 'unmatched', // confirmed | candidate | similar | unmatched
-      retail_source_url: '',
-      storage_location: defaultLoc,
-      is_favorite: false,
-      wear_count: 0,
-      worn_history: [],
-      status: 'active',
-      created_at: Date.now(),
-      attrs: {
-        color_hex: dominantHex,
-        color_name: aiAttrs.color_name || 'Classic',
-        undertone: aiAttrs.undertone || 'warm',
-        pattern: aiAttrs.pattern || 'Solid',
-        fabric: aiAttrs.fabric || 'Woven',
-        silhouette: aiAttrs.silhouette || 'balanced', // fitted | flowy | oversized | structured
-        neckline: aiAttrs.neckline || 'v_neck', // v_neck | high_neck | boat | halter | collar | scoop | none
-        metal_tone: aiAttrs.metal_tone || 'gold',
-        formality: Number(aiAttrs.formality || 3),
-        occasions: aiAttrs.occasions || ['Casual Chic']
-      }
-    };
+    const base64Array = processedImgs.map(p => p.originalDataUrl.split(',')[1]);
+    const extractedData = await analyzeGarmentWithGeminiMulti(base64Array);
+    
+    await createAndSaveItemRecord(extractedData, processedImgs, defaultLoc, priceVal, '');
+    document.getElementById('ingestProgressBar').style.width = `100%`;
+    showToast('Multi-angle item archived!');
 
-    await db.garments.put(garmentRecord);
-    prependIngestReviewCard(reviewGrid, garmentRecord);
+  } else {
+    // Process files individually
+    for (let i = 0; i < files.length; i++) {
+      document.getElementById('ingestProgressText').textContent = `Cataloging ${i + 1} of${files.length}...`;
+      document.getElementById('ingestProgressBar').style.width = `${Math.round(((i + 1) / files.length) * 100)}%`;
+      
+      const processed = await processImageFile(files[i], true);
+      const extractedData = await analyzeGarmentWithGeminiMulti([processed.originalDataUrl.split(',')[1]]);
+      await createAndSaveItemRecord(extractedData, [processed], defaultLoc, priceVal, '');
+      
+      if (files.length > 3 && i < files.length - 1) await new Promise(r => setTimeout(r, 3500)); // Rate limit buffer
+    }
+    showToast(`Archived ${files.length} pieces!`);
   }
-
-  progressText.textContent = `Completed ${files.length} item(s)! Saved to wardrobe.`;
+  
   await refreshAllViews();
-  showToast(`Added ${files.length} item(s) to her closet`);
+}
+// --- 3. NEW: Web Link Importer (Bypassing CORS via free proxy) ---
+async function handleWebLinksIngest() {
+  const linksRaw = document.getElementById('ingestWebLinks').value;
+  const links = linksRaw.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
+  if (!links.length) { showToast('Paste valid http URLs'); return; }
+
+  const defaultLoc = document.getElementById('ingestDefaultLocation').value.trim() || 'Online Order';
+  const priceVal = parseFloat(document.getElementById('ingestPrice').value) || 0;
+  
+  document.getElementById('ingestProgressWrap').classList.remove('hidden');
+
+  for (let i = 0; i < links.length; i++) {
+    document.getElementById('ingestProgressText').textContent = `Scraping link ${i + 1} of${links.length}...`;
+    document.getElementById('ingestProgressBar').style.width = `${Math.round(((i + 1) / links.length) * 100)}%`;
+
+    try {
+      // Use AllOrigins to bypass CORS and fetch the HTML of the product page
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(links[i])}`;
+      const res = await fetch(proxyUrl);
+      const data = await res.json();
+      
+      // Regex to find OpenGraph Image (<meta property="og:image" content="URL">)
+      const match = data.contents.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i) || 
+                    data.contents.match(/<img[^>]*src="([^"]+)"[^>]*>/i); // Fallback to first img
+                    
+      if (match && match[1]) {
+        let imgUrl = match[1];
+        if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl; // Fix protocol-less URLs
+
+        // Fetch image via proxy to avoid Canvas taint
+        const imgBlobProxy = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
+        const imgRes = await fetch(imgBlobProxy);
+        const blob = await imgRes.blob();
+        const file = new File([blob], "web_import.jpg", { type: blob.type });
+
+        const processed = await processImageFile(file, true);
+        const extractedData = await analyzeGarmentWithGeminiMulti([processed.originalDataUrl.split(',')[1]]);
+        
+        await createAndSaveItemRecord(extractedData, [processed], defaultLoc, priceVal, links[i]);
+      }
+    } catch (e) {
+      console.warn('Failed to scrape link:', links[i], e);
+    }
+  }
+  document.getElementById('ingestWebLinks').value = '';
+  await refreshAllViews();
+  showToast('Web Links Imported!');
+}
+async function analyzeGarmentWithGeminiMulti(base64Array) {
+  if (!state.profile.geminiKey) return {};
+  
+  const prompt = `Analyze these image(s) of a single garment/accessory from potentially multiple angles. Return ONLY valid JSON:
+  {
+    "name": "Descriptive title (e.g. Emerald Banarasi Silk Saree)",
+    "category": "top, bottom, drape, dress, outer, footwear, jewellery, bag",
+    "subcategory": "specific type",
+    "brand": "brand name if visible",
+    "color_name": "main color",
+    "undertone": "warm, cool, or neutral",
+    "pattern": "Solid, Floral, Zari, Printed, etc.",
+    "fabric": "Silk, Cotton, Linen, Leather, etc.",
+    "silhouette": "fitted, flowy, oversized, or structured",
+    "neckline": "v_neck, high_neck, boat, scoop, collar, sweet_heart, or none",
+    "formality": 3
+  }`;
+
+  const parts = [{ text: prompt }];
+  base64Array.forEach(b64 => parts.push({ inlineData: { mimeType: 'image/webp', data: b64 } }));
+
+  try {
+    // Default to Flash for batching, Pro is reserved for Lookbook generation
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.profile.geminiKey}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } })
+    });
+    const data = await res.json();
+    return JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+  } catch (err) {
+    return {};
+  }
+}
+
+// --- 5. NEW: Unified Item Creator ---
+async function createAndSaveItemRecord(aiAttrs, processedImgsArray, location, price, sourceUrl) {
+  const primaryImg = processedImgsArray[0];
+  const galleryUrls = processedImgsArray.map(p => p.cutoutDataUrl);
+
+  const id = 'GAR-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random() * 90 + 10);
+  const garmentRecord = {
+    id,
+    name: aiAttrs.name || 'Bespoke Piece',
+    category: aiAttrs.category || 'top',
+    brand: aiAttrs.brand || '',
+    price: price || 0,
+    original_img: primaryImg.originalDataUrl,
+    cutout_img: primaryImg.cutoutDataUrl,
+    gallery: galleryUrls, // Stores all multiple angles
+    studio_upgrade_img: '',
+    active_img: primaryImg.cutoutDataUrl,
+    retail_match_status: sourceUrl ? 'confirmed' : (aiAttrs.brand ? 'candidate' : 'unmatched'),
+    retail_source_url: sourceUrl || '',
+    storage_location: location,
+    is_favorite: false,
+    wear_count: 0,
+    status: 'active', // 'active' | 'laundry'
+    created_at: Date.now(),
+    attrs: {
+      color_hex: primaryImg.dominantHex,
+      color_name: aiAttrs.color_name || 'Classic',
+      undertone: aiAttrs.undertone || 'warm',
+      pattern: aiAttrs.pattern || 'Solid',
+      fabric: aiAttrs.fabric || 'Woven',
+      silhouette: aiAttrs.silhouette || 'balanced',
+      neckline: aiAttrs.neckline || 'none'
+    }
+  };
+
+  await db.garments.put(garmentRecord);
+  prependIngestReviewCard(document.getElementById('ingestReviewGrid'), garmentRecord);
 }
 
 async function analyzeGarmentWithGemini(base64DataUrl) {
@@ -483,6 +562,10 @@ async function toggleFavoriteItem(id) {
   renderCloset();
 }
 
+// ============================================================================
+// ITEM DETAILS, MULTI-ANGLE GALLERY, CPW, AND LAUNDRY TOGGLE
+// ============================================================================
+
 async function openItemDetailModal(id) {
   const item = await db.garments.get(id);
   if (!item) return;
@@ -493,106 +576,143 @@ async function openItemDetailModal(id) {
   const searchQuery = encodeURIComponent(`${item.brand || ''} ${item.sku || ''} ${item.name} ${item.attrs?.color_name || ''} ${item.attrs?.fabric || ''}`.trim());
   const googleShoppingUrl = `https://www.google.com/search?tbm=isch&q=${searchQuery}`;
 
+  // 1. Calculate CPW (Cost Per Wear)
+  const cpw = item.price ? (item.wear_count > 0 ? (item.price / item.wear_count).toFixed(2) : item.price.toFixed(2)) : '0.00';
+
+  // 2. Generate Multi-Angle Gallery HTML (Only shows if item has multiple images)
+  const galleryHtml = (item.gallery && item.gallery.length > 1)
+    ? `<div class="flex gap-2 overflow-x-auto py-2 mb-4">
+         ${item.gallery.map(img => `<img src="${img}" onclick="setPrimaryGarmentImage('${item.id}', 'gallery', '${img}')" class="w-16 h-20 object-contain bg-white rounded-lg border ${item.active_img === img ? 'border-champagne ring-1 ring-champagne' : 'border-champagne/20'} cursor-pointer hover:border-champagne transition" />`).join('')}
+       </div>`
+    : '';
+
   const content = document.getElementById('itemDetailContent');
   content.innerHTML = `
+    <!-- Top Bar: Laundry Status & Analytics -->
+    <div class="flex flex-wrap items-center justify-between bg-plumlight p-3.5 rounded-2xl border border-champagne/30 mb-4 gap-2">
+      <div class="flex items-center gap-3.5 text-xs">
+        <span class="text-stone-400 uppercase tracking-widest text-[9px] font-bold">Metrics:</span>
+        <span class="text-white font-semibold">Cost: $${item.price || 0}</span>
+        <span class="text-emerald-400 font-semibold">CPW: $${cpw}</span>
+      </div>
+      <label class="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold cursor-pointer transition ${item.status === 'laundry' ? 'text-rose-400' : 'text-stone-400 hover:text-goldlight'}">
+        <input type="checkbox" onchange="toggleLaundryStatus('${item.id}', this.checked)" class="sr-only" ${item.status === 'laundry' ? 'checked' : ''}>
+        <i data-lucide="${item.status === 'laundry' ? 'waves' : 'shirt'}" class="w-4 h-4"></i>
+        ${item.status === 'laundry' ? 'In Laundry/Repair' : 'Mark in Laundry'}
+      </label>
+    </div>
+
+    <!-- Gallery Strip -->
+    ${galleryHtml}
+
     <!-- Side-by-Side Original vs Studio Catalog Upgrade -->
-    <div class="bg-stone-50 p-3.5 rounded-2xl border border-stone-200">
-      <div class="flex items-center justify-between mb-2">
+    <div class="bg-plumlight p-4 rounded-2xl border border-champagne/20 mb-4">
+      <div class="flex items-center justify-between mb-4">
         <div>
-          <h4 class="text-xs font-bold uppercase tracking-wider text-stone-800">4-State Online Catalog & Studio Image Upgrade</h4>
-          <p class="text-[11px] text-stone-500">Your original garment photo is permanently preserved. Approve an online studio photo for cleaner lookbooks.</p>
+          <h4 class="text-[10px] font-bold uppercase tracking-widest text-white">4-State Studio Match</h4>
+          <p class="text-[10px] text-stone-400 mt-0.5">Approve an online photo for cleaner lookbooks.</p>
         </div>
-        <select id="editRetailStatus" class="px-2.5 py-1 rounded-lg bg-white border border-stone-300 text-xs font-semibold">
-          <option value="unmatched" ${item.retail_match_status === 'unmatched' ? 'selected' : ''}>Status: Unmatched</option>
-          <option value="candidate" ${item.retail_match_status === 'candidate' ? 'selected' : ''}>Status: Strong Candidate</option>
-          <option value="similar" ${item.retail_match_status === 'similar' ? 'selected' : ''}>Status: Similar Reference</option>
-          <option value="confirmed" ${item.retail_match_status === 'confirmed' ? 'selected' : ''}>Status: Confirmed Exact</option>
+        <select id="editRetailStatus" class="px-3 py-1.5 rounded-lg bg-plumcard border border-champagne/30 text-xs font-semibold text-goldlight focus:outline-none focus:border-champagne">
+          <option value="unmatched" ${item.retail_match_status === 'unmatched' ? 'selected' : ''}>Unmatched</option>
+          <option value="candidate" ${item.retail_match_status === 'candidate' ? 'selected' : ''}>Strong Candidate</option>
+          <option value="similar" ${item.retail_match_status === 'similar' ? 'selected' : ''}>Similar Reference</option>
+          <option value="confirmed" ${item.retail_match_status === 'confirmed' ? 'selected' : ''}>Confirmed Exact</option>
         </select>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 my-3">
-        <div class="bg-white p-2.5 rounded-xl border ${item.active_img === item.cutout_img ? 'border-stone-900 ring-1 ring-stone-900' : 'border-stone-200'} text-center">
-          <p class="text-[10px] font-bold uppercase text-stone-500 mb-1">Original Cutout (Source of Truth)</p>
+      <div class="grid grid-cols-2 gap-4 my-3">
+        <div class="bg-plumcard p-3 rounded-xl border ${item.active_img === item.cutout_img ? 'border-champagne ring-1 ring-champagne' : 'border-champagne/20'} text-center transition">
+          <p class="text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-2">Original Cutout</p>
           <img src="${item.cutout_img}" class="h-36 mx-auto object-contain cutout-bg rounded-lg" />
-          <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="mt-2 w-full py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-[11px] font-semibold">Use Original Cutout</button>
+          <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="mt-3 w-full py-2 rounded-lg bg-plumlight hover:bg-silkdark border border-champagne/20 text-white text-[10px] font-semibold tracking-wider uppercase transition">Use Original</button>
         </div>
 
-        <div class="bg-white p-2.5 rounded-xl border ${item.studio_upgrade_img && item.active_img === item.studio_upgrade_img ? 'border-emerald-600 ring-1 ring-emerald-600' : 'border-stone-200'} text-center flex flex-col justify-between">
-          <p class="text-[10px] font-bold uppercase text-emerald-800 mb-1">Online Studio Upgrade</p>
+        <div class="bg-plumcard p-3 rounded-xl border ${item.studio_upgrade_img && item.active_img === item.studio_upgrade_img ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-champagne/20'} text-center flex flex-col justify-between transition">
+          <p class="text-[9px] font-bold uppercase tracking-widest text-emerald-400 mb-2">Studio Upgrade</p>
           ${item.studio_upgrade_img
-            ? `<img src="${item.studio_upgrade_img}" class="h-36 mx-auto object-contain rounded-lg" />
-               <button onclick="setPrimaryGarmentImage('${item.id}', 'studio')" class="mt-2 w-full py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold">Use Studio Image</button>`
-            : `<div class="h-36 flex flex-col items-center justify-center text-[11px] text-stone-400 px-2">
-                 No studio image linked yet. Search brand/label below or paste image URL.
+            ? `<img src="${item.studio_upgrade_img}" class="h-36 mx-auto object-contain rounded-lg bg-white" />
+               <button onclick="setPrimaryGarmentImage('${item.id}', 'studio')" class="mt-3 w-full py-2 rounded-lg bg-emerald-900/40 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-900/60 text-[10px] font-semibold tracking-wider uppercase transition">Use Studio</button>`
+            : `<div class="h-36 flex flex-col items-center justify-center text-[10px] text-stone-500 px-2 italic font-serif">
+                 No studio image linked yet. Paste URL below.
                </div>`
           }
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-2 items-center">
-        <a href="${googleShoppingUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 text-xs font-semibold flex items-center gap-1">
-          🔍 Find Exact Store Image (Google Images / Lens)
+      <div class="flex flex-wrap gap-2 items-center mt-4">
+        <a href="${googleShoppingUrl}" target="_blank" class="px-3.5 py-2.5 rounded-xl bg-plumcard border border-champagne/40 hover:border-champagne text-goldlight text-[11px] font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="search" class="w-3.5 h-3.5"></i> Find Store Image
         </a>
-        <input id="editStudioImgUrl" type="url" value="${item.studio_upgrade_img || ''}" placeholder="Paste Online Product Image URL here..." class="flex-1 px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs" />
-        <button onclick="applyStudioImageUrl('${item.id}')" class="px-3 py-1.5 rounded-xl bg-stone-900 text-white text-xs font-semibold">Preview & Approve</button>
+        <input id="editStudioImgUrl" type="url" value="${item.studio_upgrade_img || ''}" placeholder="Paste Image URL here..." class="flex-1 px-3.5 py-2.5 bg-plumcard border border-champagne/30 rounded-xl text-xs text-white focus:outline-none focus:border-champagne transition" />
+        <button onclick="applyStudioImageUrl('${item.id}')" class="btn-gold px-4 py-2.5 rounded-xl text-[11px] font-bold tracking-wider uppercase shadow-md transition">Preview</button>
       </div>
     </div>
 
     <!-- Editable Metadata Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs mb-5">
       <div>
-        <label class="text-[10px] font-bold uppercase text-stone-500">Item Name</label>
-        <input id="editItemName" type="text" value="${item.name}" class="w-full mt-0.5 px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl" />
+        <label class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Item Name</label>
+        <input id="editItemName" type="text" value="${item.name}" class="w-full mt-1.5 px-3 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-white focus:outline-none focus:border-champagne" />
       </div>
       <div>
-        <label class="text-[10px] font-bold uppercase text-stone-500">Category</label>
-        <select id="editItemCat" class="w-full mt-0.5 px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl">
+        <label class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Category</label>
+        <select id="editItemCat" class="w-full mt-1.5 px-3 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-goldlight focus:outline-none focus:border-champagne">
           ${['top','bottom','drape','dress','outer','footwear','jewellery','bag'].map(c => `<option value="${c}" ${item.category === c ? 'selected' : ''}>${c.toUpperCase()}</option>`).join('')}
         </select>
       </div>
       <div>
-        <label class="text-[10px] font-bold uppercase text-stone-500">Physical Storage Location</label>
-        <input id="editItemLoc" type="text" value="${item.storage_location || ''}" placeholder="e.g., Main Almirah Shelf 2" class="w-full mt-0.5 px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl" />
+        <label class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Vault Location</label>
+        <input id="editItemLoc" type="text" value="${item.storage_location || ''}" placeholder="e.g. Almirah 2" class="w-full mt-1.5 px-3 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-white focus:outline-none focus:border-champagne" />
       </div>
       <div>
-        <label class="text-[10px] font-bold uppercase text-stone-500">Brand & SKU</label>
-        <input id="editItemBrand" type="text" value="${item.brand || ''}" placeholder="e.g., Zara / Sabyasachi" class="w-full mt-0.5 px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl" />
+        <label class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Purchase Price</label>
+        <input id="editItemPrice" type="number" value="${item.price || 0}" class="w-full mt-1.5 px-3 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-white focus:outline-none focus:border-champagne" />
       </div>
       <div>
-        <label class="text-[10px] font-bold uppercase text-stone-500">Fabric / Material</label>
-        <input id="editItemFabric" type="text" value="${item.attrs?.fabric || ''}" class="w-full mt-0.5 px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl" />
+        <label class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Brand / Designer</label>
+        <input id="editItemBrand" type="text" value="${item.brand || ''}" placeholder="e.g. Zara" class="w-full mt-1.5 px-3 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-white focus:outline-none focus:border-champagne" />
       </div>
       <div>
-        <label class="text-[10px] font-bold uppercase text-stone-500">Neckline / Cut</label>
-        <select id="editItemNeck" class="w-full mt-0.5 px-2.5 py-1.5 bg-stone-50 border border-stone-200 rounded-xl">
-          ${['v_neck','high_neck','boat','scoop','collar','sweet_heart','none'].map(n => `<option value="${n}" ${item.attrs?.neckline === n ? 'selected' : ''}>${n.replace('_',' ')}</option>`).join('')}
-        </select>
+        <label class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Fabric</label>
+        <input id="editItemFabric" type="text" value="${item.attrs?.fabric || ''}" class="w-full mt-1.5 px-3 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-white focus:outline-none focus:border-champagne" />
       </div>
     </div>
 
-    <!-- Social Group & Event Worn Log -->
-    <div class="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80">
-      <div class="flex items-center justify-between mb-1.5">
-        <span class="text-xs font-bold text-amber-950">Worn Memory & Event Guard (${item.wear_count || 0} wears)</span>
-        <div class="flex gap-1.5">
-          <input id="logWearEventInput" type="text" placeholder="Event / Group (e.g. Cousin Wedding)" class="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs" />
-          <button onclick="recordGarmentWear('${item.id}')" class="px-2.5 py-1 bg-amber-900 text-white rounded-lg text-xs font-semibold">+ Log Wear</button>
+    <!-- Wear Log -->
+    <div class="bg-plumcard p-4 rounded-2xl border border-champagne/20 mb-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-goldlight">Worn Memory (${item.wear_count || 0} wears)</span>
+        <div class="flex gap-2">
+          <input id="logWearEventInput" type="text" placeholder="Event (e.g. Wedding)" class="px-3.5 py-2 bg-plumlight border border-champagne/30 rounded-xl text-xs text-white focus:outline-none focus:border-champagne" />
+          <button onclick="recordGarmentWear('${item.id}')" class="btn-obsidian px-3.5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm">+ Log</button>
         </div>
       </div>
-      <div class="text-[11px] text-amber-900 space-y-1">
+      <div class="text-[11px] text-stone-300 space-y-1 mt-2">
         ${(item.worn_history || []).length
-          ? item.worn_history.map(w => `<span class="inline-block px-2 py-0.5 rounded bg-white border border-amber-200 mr-1">${w.date}: ${w.event}</span>`).join('')
-          : 'No events logged yet — safe to wear anywhere without repeating!'}
+          ? item.worn_history.map(w => `<span class="inline-block px-3 py-1.5 rounded-lg bg-plumlight border border-champagne/20 mr-1.5 mb-1.5">${w.date}:${w.event}</span>`).join('')
+          : '<span class="italic font-serif text-stone-500">No events logged yet.</span>'}
       </div>
     </div>
 
-    <div class="flex items-center justify-between pt-2 border-t border-stone-200">
-      <button onclick="deleteGarmentItem('${item.id}')" class="px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-semibold">Delete Item</button>
-      <button onclick="saveItemDetailEdits('${item.id}')" class="px-5 py-2 rounded-xl bg-stone-900 text-white text-xs font-semibold">Save Changes</button>
+    <!-- Footer Actions -->
+    <div class="flex items-center justify-between pt-5 border-t border-champagne/20">
+      <button onclick="deleteGarmentItem('${item.id}')" class="px-5 py-3 rounded-full text-rose-400 border border-rose-900/50 hover:bg-rose-950/30 text-[11px] font-bold tracking-wider uppercase transition">Delete Piece</button>
+      <button onclick="saveItemDetailEdits('${item.id}')" class="btn-gold px-7 py-3 rounded-full text-[11px] font-bold tracking-wider uppercase transition shadow-md">Save Changes</button>
     </div>
   `;
 
   openModal('itemDetailModal');
+  lucide.createIcons();
+}
+
+// Helper: Toggle Laundry Status
+async function toggleLaundryStatus(id, isInLaundry) {
+  const item = await db.garments.get(id);
+  item.status = isInLaundry ? 'laundry' : 'active';
+  await db.garments.put(item);
+  await renderCloset();
+  openItemDetailModal(id); // refresh modal to show new UI state
+  showToast(isInLaundry ? 'Moved to Laundry Basket' : 'Returned to Active Wardrobe');
 }
 
 async function applyStudioImageUrl(id) {
@@ -609,27 +729,35 @@ async function applyStudioImageUrl(id) {
   showToast('Studio Image approved & activated!');
 }
 
-async function setPrimaryGarmentImage(id, type) {
+// Helper: Set Active Display Image (Supports 3rd state: Gallery selection)
+async function setPrimaryGarmentImage(id, type, imgUrl = null) {
   const item = await db.garments.get(id);
-  item.active_img = (type === 'studio' && item.studio_upgrade_img) ? item.studio_upgrade_img : item.cutout_img;
+  if (type === 'studio' && item.studio_upgrade_img) {
+    item.active_img = item.studio_upgrade_img;
+  } else if (type === 'gallery' && imgUrl) {
+    item.active_img = imgUrl; // Allows setting one of the multi-angle photos as the main cover
+  } else {
+    item.active_img = item.cutout_img;
+  }
   await db.garments.put(item);
   openItemDetailModal(id);
   renderCloset();
 }
 
+// Helper: Save Detail Edits (Updated to save Price)
 async function saveItemDetailEdits(id) {
   const item = await db.garments.get(id);
   item.name = document.getElementById('editItemName').value.trim();
   item.category = document.getElementById('editItemCat').value;
   item.storage_location = document.getElementById('editItemLoc').value.trim();
+  item.price = parseFloat(document.getElementById('editItemPrice').value) || 0; // Saves price for CPW
   item.brand = document.getElementById('editItemBrand').value.trim();
   item.retail_match_status = document.getElementById('editRetailStatus').value;
   item.attrs.fabric = document.getElementById('editItemFabric').value.trim();
-  item.attrs.neckline = document.getElementById('editItemNeck').value;
   await db.garments.put(item);
   closeModal('itemDetailModal');
   await refreshAllViews();
-  showToast('Item updated');
+  showToast('Dossier updated');
 }
 
 async function recordGarmentWear(id) {
@@ -858,8 +986,8 @@ function evaluateLiveOutfitHarmony(itemMap) {
 
 // Deterministic Smart Spin (Respects Locks, Undertones, Necklines & Proportions)
 async function autoStyleSmartDeterministic() {
-  const items = await db.garments.toArray();
-  if (!items.length) return;
+const items = (await db.garments.toArray()).filter(i => i.status !== 'laundry');
+ if (!items.length) return;
 
   const byCat = (cats) => items.filter(i => cats.includes(i.category));
   const pickRandom = (arr) => arr.length ? arr[Math.floor(Math.random() * arr.length)] : null;
