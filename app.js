@@ -945,7 +945,8 @@ Wardrobe Inventory JSON:
 ${JSON.stringify(compactWardrobe)}`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${state.profile.geminiModel}:generateContent?key=${state.profile.geminiKey}`;
+    const proModel = 'gemini-2.5-pro';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${proModel}:generateContent?key=${state.profile.geminiKey}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1482,7 +1483,8 @@ async function handleInspirationMatch(event) {
   if (state.profile.geminiKey) {
     try {
       const compact = items.map(i => ({ id: i.id, name: i.name, category: i.category, color: i.attrs?.color_name, fabric: i.attrs?.fabric }));
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${state.profile.geminiModel}:generateContent?key=${state.profile.geminiKey}`;
+        const proModel = 'gemini-2.5-pro';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${proModel}:generateContent?key=${state.profile.geminiKey}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
