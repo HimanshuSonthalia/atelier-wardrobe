@@ -705,9 +705,10 @@ async function openItemDetailModal(id) {
         <div class="bg-plumcard p-3 rounded-xl border ${item.active_img === item.cutout_img || item.active_img === item.original_img ? 'border-champagne ring-1 ring-champagne' : 'border-champagne/20'} text-center transition">
           <div class="flex items-center justify-between mb-2">
             <p class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Your Photo</p>
-            <div class="flex bg-plumlight rounded-md p-0.5">
-              <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="px-2 py-1 rounded text-[8px] font-bold uppercase ${item.active_img === item.cutout_img ? 'bg-champagne text-plum' : 'text-stone-400'}">Cutout</button>
-              <button onclick="setPrimaryGarmentImage('${item.id}', 'raw')" class="px-2 py-1 rounded text-[8px] font-bold uppercase ${item.active_img === item.original_img ? 'bg-champagne text-plum' : 'text-stone-400'}">Raw</button>
+            <div class="flex bg-plumlight rounded-md p-0.5 gap-0.5">
+              <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="px-2 py-1 rounded text-[8px] font-bold uppercase transition ${item.active_img === item.cutout_img ? 'bg-champagne text-plum' : 'text-stone-400 hover:bg-plumcard'}">Cutout</button>
+              <button onclick="setPrimaryGarmentImage('${item.id}', 'raw')" class="px-2 py-1 rounded text-[8px] font-bold uppercase transition ${item.active_img === item.original_img ? 'bg-champagne text-plum' : 'text-stone-400 hover:bg-plumcard'}">Raw</button>
+              <button onclick="regenerateCutout('${item.id}')" class="px-2 py-1 rounded text-[8px] font-bold uppercase text-emerald-400 hover:bg-plumcard transition" title="Re-run AI Background Removal">Refine ⟳</button>
             </div>
           </div>
           <img src="${item.active_img === item.studio_upgrade_img ? item.cutout_img : item.active_img}" class="h-36 mx-auto object-contain cutout-bg rounded-lg" />
@@ -2223,4 +2224,33 @@ async function runAIAuditor() {
     wrap.classList.add('hidden');
     btn.disabled = false;
   }, 3000);
+}
+
+// --- ON-DEMAND AI CUTOUT REFINEMENT ---
+async function regenerateCutout(id) {
+  const item = await db.garments.get(id);
+  showToast('AI Auditor is refining the cutout. Please wait...');
+  
+  try {
+    const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+    const res = await fetch(item.original_img);
+    const blob = await res.blob();
+    const cutoutBlob = await imglyRemoveBackground(blob);
+    
+    const cutoutDataUrl = await new Promise(r => {
+      const reader = new FileReader();
+      reader.onloadend = () => r(reader.result);
+      reader.readAsDataURL(cutoutBlob);
+    });
+    
+    item.cutout_img = cutoutDataUrl;
+    item.active_img = cutoutDataUrl;
+    await db.garments.put(item);
+    
+    openItemDetailModal(id);
+    renderCloset();
+    showToast('Cutout perfected!');
+  } catch (e) {
+    showToast('Failed to refine cutout.');
+  }
 }
