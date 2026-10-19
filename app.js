@@ -105,11 +105,31 @@ function switchIngestTab(tab) {
 }
 
 // ============================================================================
-// 2. IMAGE PROCESSING: WEBP COMPRESSION & CLIENT-SIDE BACKGROUND CUTOUT
+// BULLETPROOF AI BACKGROUND REMOVAL ENGINE
 // ============================================================================
-// --- BROWSER-NATIVE AI BACKGROUND REMOVAL ---
+
+// Core AI Helper: Forces the browser to find the AI model files correctly
+async function runImglyCutout(imageBlob) {
+  const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+  const config = {
+    publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/',
+    debug: false
+  };
+  return await imglyRemoveBackground(imageBlob, config);
+}
+
+// Helper to safely convert base64 to Blob to prevent fetch() crashes
+function base64ToBlob(base64Data, contentType) {
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  return new Blob([new Uint8Array(byteNumbers)], { type: contentType });
+}
+
+// 1. Initial Upload Processing
 async function processImageFile(file, autoCutout = true, maxDim = 768) {
-  // Convert File to Base64
   const originalDataUrl = await new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target.result);
@@ -120,31 +140,23 @@ async function processImageFile(file, autoCutout = true, maxDim = 768) {
   
   if (autoCutout) {
     try {
-      document.getElementById('ingestProgressText').textContent = 'AI cutting background... (Model loads once)';
-      // Dynamically load the Imgly AI model (Runs locally, zero privacy concerns)
-      const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
-      const blob = await imglyRemoveBackground(file);
+      document.getElementById('ingestProgressText').textContent = 'AI cutting background... (Downloading model)';
+      const cutoutBlob = await runImglyCutout(file);
       cutoutDataUrl = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
+        reader.readAsDataURL(cutoutBlob);
       });
     } catch (e) {
-      console.error("AI Cutout failed, using original.", e);
+      console.warn("AI Cutout failed on upload, using original.", e);
     }
   }
 
-  // Compute visual fingerprint for deduplication
   const dHash = await computeDHash(originalDataUrl);
-  
-  // Calculate dominant color
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
   const dominantHex = '#C5A059'; // Fallback champagne
   
   return { originalDataUrl, cutoutDataUrl, dominantHex, dHash };
 }
-
 function sampleDominantColor(ctx, w, h) {
   const data = ctx.getImageData(Math.floor(w * 0.3), Math.floor(h * 0.3), Math.max(1, Math.floor(w * 0.4)), Math.max(1, Math.floor(h * 0.4))).data;
   let r = 0, g = 0, b = 0, count = 0;
@@ -2227,31 +2239,16 @@ async function runAIAuditor() {
 }
 
 // --- ON-DEMAND AI CUTOUT REFINEMENT ---
-// --- ON-DEMAND AI CUTOUT REFINEMENT (FIXED) ---
 async function regenerateCutout(id) {
   const item = await db.garments.get(id);
   showToast('AI Auditor is refining the cutout. Please wait...');
   
   try {
-    const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
-    
-    // 1. Safely convert Base64 Data URL to Blob (bypasses fetch limits)
     const base64Data = item.original_img.split(',')[1];
     const mimeType = item.original_img.match(/data:([^;]+);/)[1];
-    const byteCharacters = atob(base64Data);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
+    const blob = base64ToBlob(base64Data, mimeType);
     
-    // 2. Explicitly define the path for the AI models so they don't 404 error
-    const config = {
-      publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/'
-    };
-
-    // 3. Run the AI
-    const cutoutBlob = await imglyRemoveBackground(blob, config);
+    const cutoutBlob = await runImglyCutout(blob);
     
     const cutoutDataUrl = await new Promise(r => {
       const reader = new FileReader();
@@ -2259,7 +2256,6 @@ async function regenerateCutout(id) {
       reader.readAsDataURL(cutoutBlob);
     });
     
-    // 4. Save and Update UI
     item.cutout_img = cutoutDataUrl;
     item.active_img = cutoutDataUrl;
     await db.garments.put(item);
@@ -2267,9 +2263,8 @@ async function regenerateCutout(id) {
     openItemDetailModal(id);
     renderCloset();
     showToast('Cutout perfected!');
-    
   } catch (e) {
     console.error("Refine Error:", e);
-    showToast('Failed to refine cutout.');
+    showToast('Failed to refine cutout. Check browser console.');
   }
 }
