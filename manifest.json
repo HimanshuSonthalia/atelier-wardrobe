@@ -1,0 +1,22 @@
+{
+  "name": "L'ATELIER — Personal Digital Wardrobe & Stylist",
+  "short_name": "L'Atelier",
+  "description": "Personal AI Couture Catalogue, Mix & Match Lookbook, and Virtual Try-On Studio",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fafaf9",
+  "theme_color": "#1c1917",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231c1917'/><text x='50' y='67' font-family='Georgia,serif' font-size='52' fill='%23fde68a' text-anchor='middle'>A</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%231c1917'/><text x='50' y='67' font-family='Georgia,serif' font-size='52' fill='%23fde68a' text-anchor='middle'>A</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

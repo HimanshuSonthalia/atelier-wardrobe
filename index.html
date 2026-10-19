@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1c1917" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>L'ATELIER — Personal Digital Wardrobe & AI Stylist</title>
+  <link rel="manifest" href="manifest.json" />
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Dexie.js (IndexedDB wrapper for 200+ items) -->
+  <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-stone-50 text-stone-900 antialiased selection:bg-amber-200 selection:text-stone-900 pb-24">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-30 bg-stone-50/90 backdrop-blur-md border-b border-stone-200 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-full bg-stone-900 text-amber-200 flex items-center justify-center font-serif text-lg font-semibold tracking-wider shadow-sm">
+        A
+      </div>
+      <div>
+        <h1 class="font-serif text-xl font-bold tracking-tight text-stone-900 leading-none">L'ATELIER</h1>
+        <p id="headerSubtitle" class="text-[11px] text-stone-500 font-medium tracking-wide uppercase mt-0.5">Personal Couture & Stylist</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button onclick="openModal('inspoModal')" class="px-2.5 py-1.5 rounded-full bg-amber-100/80 hover:bg-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-1.5 transition" title="Recreate a Pinterest or Celebrity Look">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span class="hidden sm:inline">Recreate Look</span>
+      </button>
+      <button onclick="openModal('ingestModal')" class="px-3 py-1.5 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+        <span>Add Items</span>
+      </button>
+      <button onclick="openModal('settingsModal')" class="p-2 rounded-full hover:bg-stone-200 text-stone-600 transition" title="Settings, API Key & Sync">
+        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="max-w-5xl mx-auto px-4 pt-4">
+
+    <!-- ================= TAB 1: CLOSET CATALOGUE ================= -->
+    <section id="tab-closet" class="tab-view active">
+      <!-- Stats & Quick Bar -->
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <div class="bg-white p-3 rounded-2xl border border-stone-200/80 shadow-sm">
+          <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Total Pieces</p>
+          <p id="statTotalItems" class="text-xl font-serif font-bold text-stone-900 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-3 rounded-2xl border border-stone-200/80 shadow-sm">
+          <p class="text-[11px] uppercase tracking-wider text-stone-400 font-semibold">Saved Looks</p>
+          <p id="statTotalLooks" class="text-xl font-serif font-bold text-stone-900 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-3 rounded-2xl border border-stone-200/80 shadow-sm cursor-pointer hover:border-amber-400 transition" onclick="setClosetQuickFilter('unworn')">
+          <p class="text-[11px] uppercase tracking-wider text-amber-700 font-semibold">Unworn Gems</p>
+          <p id="statUnwornItems" class="text-xl font-serif font-bold text-amber-800 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-3 rounded-2xl border border-stone-200/80 shadow-sm cursor-pointer hover:border-emerald-400 transition" onclick="setClosetQuickFilter('upgrade_ready')">
+          <p class="text-[11px] uppercase tracking-wider text-emerald-700 font-semibold">Studio Match</p>
+          <p id="statStudioUpgrades" class="text-xl font-serif font-bold text-emerald-800 mt-0.5">0</p>
+        </div>
+      </div>
+
+      <!-- Search & Filter Controls -->
+      <div class="bg-white p-3 rounded-2xl border border-stone-200/80 shadow-sm mb-4 space-y-2.5">
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input id="closetSearch" type="text" oninput="renderCloset()" placeholder="Search colour, fabric, brand, occasion or cupboard shelf..." class="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:border-stone-900" />
+          </div>
+          <select id="closetLocationFilter" onchange="renderCloset()" class="bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-2 text-xs text-stone-700 focus:outline-none">
+            <option value="all">All Locations</option>
+          </select>
+          <select id="closetSort" onchange="renderCloset()" class="bg-stone-50 border border-stone-200 rounded-xl px-2.5 py-2 text-xs text-stone-700 focus:outline-none">
+            <option value="newest">Newest</option>
+            <option value="favorites">Favourites</option>
+            <option value="least_worn">Least Worn First</option>
+            <option value="most_worn">Most Worn First</option>
+          </select>
+        </div>
+
+        <!-- Category Pills -->
+        <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="categoryFilterBar">
+          <button onclick="setClosetCategory('all')" data-cat="all" class="cat-pill active">All</button>
+          <button onclick="setClosetCategory('top')" data-cat="top" class="cat-pill">Tops & Kurtis</button>
+          <button onclick="setClosetCategory('bottom')" data-cat="bottom" class="cat-pill">Bottoms & Skirts</button>
+          <button onclick="setClosetCategory('drape')" data-cat="drape" class="cat-pill">Sarees & Lehengas</button>
+          <button onclick="setClosetCategory('dress')" data-cat="dress" class="cat-pill">Dresses & Co-ords</button>
+          <button onclick="setClosetCategory('outer')" data-cat="outer" class="cat-pill">Jackets & Dupattas</button>
+          <button onclick="setClosetCategory('footwear')" data-cat="footwear" class="cat-pill">Footwear</button>
+          <button onclick="setClosetCategory('jewellery')" data-cat="jewellery" class="cat-pill">Jewellery</button>
+          <button onclick="setClosetCategory('bag')" data-cat="bag" class="cat-pill">Bags & Acc</button>
+        </div>
+      </div>
+
+      <!-- Closet Grid -->
+      <div id="closetGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+      <div id="closetEmptyState" class="hidden text-center py-14 bg-white rounded-3xl border border-dashed border-stone-300 my-4 px-6">
+        <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="shirt" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-serif text-xl font-bold text-stone-800">Her Digital Wardrobe Awaits</h3>
+        <p class="text-xs text-stone-500 max-w-md mx-auto mt-1 mb-4">Add her clothes, sarees, footwear, jewellery, or load a sample boutique collection to test all styling features immediately.</p>
+        <div class="flex justify-center gap-2.5 flex-wrap">
+          <button onclick="openModal('ingestModal')" class="px-4 py-2.5 rounded-xl bg-stone-900 text-white text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="camera" class="w-4 h-4"></i> Bulk Upload Photos
+          </button>
+          <button onclick="seedDemoWardrobe()" class="px-4 py-2.5 rounded-xl bg-amber-100 text-amber-900 hover:bg-amber-200 text-xs font-semibold flex items-center gap-1.5">
+            <i data-lucide="wand-2" class="w-4 h-4"></i> Load Sample Luxury Wardrobe
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 2: STUDIO & AI STYLIST (MIX & MATCH + VTON) ================= -->
+    <section id="tab-studio" class="tab-view hidden">
+      <!-- Context Bar -->
+      <div class="bg-white p-3.5 rounded-2xl border border-stone-200/80 shadow-sm mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-wrap flex-1">
+            <select id="studioOccasion" class="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-800">
+              <option value="Casual Chic">Occasion: Casual / Day Out</option>
+              <option value="Festive & Ethnic">Occasion: Festive / Puja / Sangeet</option>
+              <option value="Wedding & Grand">Occasion: Wedding / Reception</option>
+              <option value="Evening Dinner">Occasion: Date Night / Dinner</option>
+              <option value="Resort & Travel">Occasion: Vacation / Resort</option>
+              <option value="Smart Formal">Occasion: Smart Work / Lounge</option>
+            </select>
+            <select id="studioWeather" class="bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-medium text-stone-800">
+              <option value="warm">Weather: Warm / Pleasant</option>
+              <option value="hot">Weather: Hot & Humid</option>
+              <option value="cool">Weather: Cool / AC Indoor</option>
+              <option value="cold">Weather: Winter / Layered</option>
+            </select>
+            <select id="studioMode" onchange="toggleStudioGarmentMode()" class="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs font-semibold text-amber-900">
+              <option value="separates">Mode: Top + Bottom</option>
+              <option value="full">Mode: Saree / Dress / Full Outfit</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="autoStyleSmartDeterministic()" class="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold flex items-center gap-1.5 transition" title="Instant Offline Rule-Based Spin">
+              <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+              <span>Smart Spin</span>
+            </button>
+            <button onclick="generateAILookbook()" id="btnAIStyle" class="px-3.5 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-200 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>AI Couture Stylist</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Left: Interactive Mix & Match Slot-Machine Canvas (7 cols) -->
+        <div class="lg:col-span-7 bg-white rounded-3xl border border-stone-200/90 p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-serif text-lg font-bold text-stone-900">Interactive Styling Board</h2>
+              <p class="text-[11px] text-stone-500">Swipe arrows to mix items. Tap the lock icon to pin her favourite piece and spin the rest.</p>
+            </div>
+            <button onclick="clearStudioLocks()" class="text-[11px] text-stone-500 hover:text-stone-900 underline">Unlock All</button>
+          </div>
+
+          <!-- Slot Grid -->
+          <div id="slotMachineContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <!-- Dynamically populated slots: Top/Full, Bottom, Outer/Dupatta, Footwear, Jewellery, Bag -->
+          </div>
+
+          <!-- Harmony & Stylist Live Score Bar -->
+          <div id="liveHarmonyBox" class="mt-4 p-3 rounded-2xl bg-stone-50 border border-stone-200/80 flex items-start justify-between gap-3">
+            <div class="flex items-start gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 font-serif font-bold text-sm" id="harmonyScoreBadge">9.2</div>
+              <div>
+                <p class="text-xs font-semibold text-stone-800" id="harmonyTitle">Balanced Silhouette & Warm Gold Harmony</p>
+                <p class="text-[11px] text-stone-500 mt-0.5" id="harmonyDetails">Neckline pairs cleanly with selected earrings. Undertones aligned.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Makeup Director Card (Auto-Paired) -->
+          <div class="mt-3 p-3 rounded-2xl bg-rose-50/60 border border-rose-200/70">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1">
+                <i data-lucide="palette" class="w-3.5 h-3.5"></i> Paired Beauty & Makeup Direction
+              </span>
+              <button onclick="refreshMakeupSuggestion()" class="text-[11px] text-rose-700 hover:underline font-medium">Swap Shade</button>
+            </div>
+            <div id="studioMakeupCard" class="grid grid-cols-3 gap-2 text-xs">
+              <!-- Populated dynamically from owned makeup kit or shade rules -->
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button onclick="saveCurrentStudioLook()" class="flex-1 py-2.5 px-4 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition">
+              <i data-lucide="bookmark-check" class="w-4 h-4"></i> Save to Lookbook
+            </button>
+            <button onclick="openVirtualTryOnFromStudio()" class="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition">
+              <i data-lucide="user-check" class="w-4 h-4"></i> See This On Her (Try-On)
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: AI Stylist Curated Proposals & Try-On Preview (5 cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="bg-white rounded-3xl border border-stone-200/90 p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-serif text-lg font-bold text-stone-900">AI Stylist Curations</h3>
+              <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-semibold">3 Curated Looks</span>
+            </div>
+            <p class="text-[11px] text-stone-500 mb-3">Tap "AI Couture Stylist" above to let the AI assemble 3 complete looks from her closet with accessories & beauty notes.</p>
+            <div id="aiProposalsList" class="space-y-2.5">
+              <div class="text-center py-8 text-stone-400 text-xs border border-dashed border-stone-200 rounded-2xl">
+                Tap <b>AI Couture Stylist</b> or <b>Smart Spin</b> to generate curated combinations.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 3: LOOKBOOK, WORE-IT LOG & TRIP PACKER ================= -->
+    <section id="tab-lookbook" class="tab-view hidden">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div class="flex gap-2">
+          <button onclick="switchLookbookSubtab('saved')" id="subtabBtnSaved" class="px-3.5 py-1.5 rounded-full bg-stone-900 text-white text-xs font-semibold">Saved Lookbook</button>
+          <button onclick="switchLookbookSubtab('trips')" id="subtabBtnTrips" class="px-3.5 py-1.5 rounded-full bg-white border border-stone-200 text-stone-700 text-xs font-semibold">Travel & Event Capsules</button>
+        </div>
+        <select id="lookbookOccasionFilter" onchange="renderLookbook()" class="bg-white border border-stone-200 rounded-xl px-3 py-1.5 text-xs">
+          <option value="all">All Occasions</option>
+          <option value="Casual Chic">Casual / Day Out</option>
+          <option value="Festive & Ethnic">Festive / Ethnic</option>
+          <option value="Wedding & Grand">Wedding / Grand</option>
+          <option value="Evening Dinner">Evening Dinner</option>
+          <option value="Resort & Travel">Resort & Travel</option>
+          <option value="Smart Formal">Smart Formal</option>
+        </select>
+      </div>
+
+      <!-- Subview: Saved Looks Grid -->
+      <div id="lookbookSavedView">
+        <div id="lookbookGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- Subview: Travel & Event Capsule Planner -->
+      <div id="lookbookTripsView" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-3xl border border-stone-200 shadow-sm">
+          <h3 class="font-serif text-lg font-bold text-stone-900">Create Travel or Event Capsule</h3>
+          <p class="text-xs text-stone-500 mb-3">Plan outfits and generate a physical packing checklist with exact cupboard locations so nothing is forgotten.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+            <input id="tripNameInput" type="text" placeholder="e.g., Bali & Vietnam Trip or Family Wedding" class="sm:col-span-2 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs" />
+            <input id="tripDatesInput" type="text" placeholder="Dates / Duration (e.g., 5 Days)" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs" />
+            <button onclick="createNewTripCapsule()" class="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-semibold hover:bg-stone-800">+ Create Capsule</button>
+          </div>
+        </div>
+        <div id="tripsListContainer" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ================= TAB 4: BEAUTY KIT & PERSONAL PROFILE ================= -->
+    <section id="tab-beauty" class="tab-view hidden space-y-5">
+      <!-- Personal Style & Base Avatar Profile -->
+      <div class="bg-white p-4 rounded-3xl border border-stone-200/90 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="font-serif text-lg font-bold text-stone-900">Her Styling Profile & Try-On Avatars</h2>
+            <p class="text-xs text-stone-500">Used for color harmony scoring, jewellery scaling, and Virtual Try-On rendering.</p>
+          </div>
+          <button onclick="saveProfileSettings()" class="px-3 py-1.5 rounded-xl bg-stone-900 text-white text-xs font-semibold">Save Profile</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label class="text-[11px] font-semibold uppercase text-stone-500">Skin Undertone</label>
+            <select id="profUndertone" onchange="saveProfileSettings()" class="w-full mt-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs">
+              <option value="warm">Warm (Golden / Peach — suits Gold & Earthy tones)</option>
+              <option value="neutral_warm">Neutral-Warm (Versatile — Gold, Rose Gold, Jewel tones)</option>
+              <option value="cool">Cool (Pink / Bluish — suits Silver, Pastels & Jewel tones)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold uppercase text-stone-500">Seasonal Color Palette</label>
+            <select id="profSeasonPalette" onchange="saveProfileSettings()" class="w-full mt-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs">
+              <option value="Deep Autumn">Deep Autumn (Rich Golds, Rust, Emerald, Cream, Maroon)</option>
+              <option value="Warm Spring">Warm Spring (Coral, Peach, Turquoise, Warm Ivory)</option>
+              <option value="Deep Winter">Deep Winter (Ruby, Sapphire, Emerald, Crisp Black/White)</option>
+              <option value="Soft Summer">Soft Summer (Mauve, Dusty Rose, Sage, Lavender, Silver)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[11px] font-semibold uppercase text-stone-500">Height (cm - for Jewellery/Drape scale)</label>
+            <input id="profHeightCm" type="number" value="162" onchange="saveProfileSettings()" class="w-full mt-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs" />
+          </div>
+        </div>
+
+        <!-- Base Avatar Photos for Virtual Try-On -->
+        <div class="border-t border-stone-100 pt-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-stone-800">Base Photos for Virtual Try-On (Upload 1–3 full-length well-lit photos)</span>
+            <label class="px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-semibold cursor-pointer flex items-center gap-1">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i> Add Base Photo
+              <input type="file" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)" />
+            </label>
+          </div>
+          <div id="avatarGallery" class="flex gap-3 overflow-x-auto pb-2"></div>
+        </div>
+      </div>
+
+      <!-- Owned Makeup & Vanity Collection -->
+      <div class="bg-white p-4 rounded-3xl border border-stone-200/90 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h2 class="font-serif text-lg font-bold text-stone-900">Her Vanity & Makeup Kit</h2>
+            <p class="text-xs text-stone-500">The AI Stylist recommends shades directly from products she owns.</p>
+          </div>
+          <button onclick="openAddMakeupModal()" class="px-3 py-1.5 rounded-xl bg-stone-900 text-white text-xs font-semibold flex items-center gap-1">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Cosmetic
+          </button>
+        </div>
+        <div id="makeupGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION BAR (Mobile App Feel) -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-2">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-1">
+      <button onclick="switchTab('closet')" data-tab="closet" class="nav-btn active flex flex-col items-center py-1 rounded-xl transition">
+        <i data-lucide="layout-grid" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold mt-0.5">Closet</span>
+      </button>
+      <button onclick="switchTab('studio')" data-tab="studio" class="nav-btn flex flex-col items-center py-1 rounded-xl transition">
+        <i data-lucide="wand-2" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold mt-0.5">Stylist Studio</span>
+      </button>
+      <button onclick="switchTab('lookbook')" data-tab="lookbook" class="nav-btn flex flex-col items-center py-1 rounded-xl transition">
+        <i data-lucide="book-open" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold mt-0.5">Lookbook & Trips</span>
+      </button>
+      <button onclick="switchTab('beauty')" data-tab="beauty" class="nav-btn flex flex-col items-center py-1 rounded-xl transition">
+        <i data-lucide="sparkles" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold mt-0.5">Vanity & Avatar</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= MODAL 1: BULK INGESTION & AUTO-TAGGER ================= -->
+  <div id="ingestModal" class="modal-backdrop hidden">
+    <div class="modal-card max-w-2xl w-full">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3 mb-4">
+        <div>
+          <h3 class="font-serif text-xl font-bold text-stone-900">Zero-Effort Garment & Accessory Ingestion</h3>
+          <p class="text-xs text-stone-500">Select 1 or 50 photos at once. Auto-removes background, extracts attributes & checks retail studio matches.</p>
+        </div>
+        <button onclick="closeModal('ingestModal')" class="p-1.5 rounded-full hover:bg-stone-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+        <!-- Options before upload -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-stone-50 p-3 rounded-2xl border border-stone-200">
+          <div>
+            <label class="text-[11px] font-semibold uppercase text-stone-500">Default Storage Location (Optional)</label>
+            <input id="ingestDefaultLocation" type="text" placeholder="e.g., Main Almirah - Shelf 1, Safe, Loft" class="w-full mt-1 px-3 py-1.5 bg-white border border-stone-200 rounded-xl text-xs" />
+          </div>
+          <div class="flex flex-col justify-center gap-1.5 pt-2">
+            <label class="flex items-center gap-2 text-xs text-stone-700 font-medium cursor-pointer">
+              <input id="ingestAutoCutout" type="checkbox" checked class="rounded text-stone-900" />
+              Auto-Clean Background (Smart Cutout)
+            </label>
+            <label class="flex items-center gap-2 text-xs text-stone-700 font-medium cursor-pointer">
+              <input id="ingestUseGemini" type="checkbox" checked class="rounded text-stone-900" />
+              Auto-Tag with Gemini Vision API (if key set)
+            </label>
+          </div>
+        </div>
+
+        <!-- Dropzone -->
+        <label class="block border-2 border-dashed border-stone-300 hover:border-stone-900 bg-stone-50/70 rounded-3xl p-6 text-center cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-stone-900 text-amber-200 flex items-center justify-center mx-auto mb-2">
+            <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+          </div>
+          <p class="text-sm font-semibold text-stone-800">Tap to Select Garment / Jewellery Photos (or Camera)</p>
+          <p class="text-xs text-stone-500 mt-0.5">Supports bulk selection (20–50 photos). Automatically queues & compresses to fast WebP.</p>
+          <input id="bulkFileInput" type="file" accept="image/*" multiple class="hidden" onchange="handleBulkFilesSelected(event)" />
+        </label>
+
+        <!-- Queue Progress -->
+        <div id="ingestProgressWrap" class="hidden space-y-2 bg-amber-50/90 border border-amber-200 p-3.5 rounded-2xl">
+          <div class="flex items-center justify-between text-xs font-semibold text-amber-950">
+            <span id="ingestProgressText">Processing 1 of 5...</span>
+            <span id="ingestRateLimitBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-amber-200/80">Smart Queue Active</span>
+          </div>
+          <div class="w-full h-2 bg-amber-200/60 rounded-full overflow-hidden">
+            <div id="ingestProgressBar" class="h-full bg-stone-900 transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Live Review Grid of Recently Ingested Items -->
+        <div id="ingestReviewGrid" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL 2: ITEM DETAIL & 4-STATE STUDIO UPGRADE ================= -->
+  <div id="itemDetailModal" class="modal-backdrop hidden">
+    <div class="modal-card max-w-2xl w-full">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3 mb-4">
+        <div class="flex items-center gap-2">
+          <span id="detailItemIdBadge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-stone-200 text-stone-700">GAR-001</span>
+          <h3 id="detailModalTitle" class="font-serif text-xl font-bold text-stone-900">Garment Details & Studio Match</h3>
+        </div>
+        <button onclick="closeModal('itemDetailModal')" class="p-1.5 rounded-full hover:bg-stone-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div id="itemDetailContent" class="max-h-[75vh] overflow-y-auto pr-1 space-y-4">
+        <!-- Populated dynamically by openItemDetailModal(id) -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL 3: VIRTUAL TRY-ON (VTON) STUDIO ================= -->
+  <div id="vtonModal" class="modal-backdrop hidden">
+    <div class="modal-card max-w-3xl w-full">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3 mb-4">
+        <div>
+          <h3 class="font-serif text-xl font-bold text-stone-900">Virtual Try-On & Drape Composite Studio</h3>
+          <p class="text-xs text-stone-500">Preview this complete look on her Base Photo via Direct Gemini API or 1-Tap Composite Sheet.</p>
+        </div>
+        <button onclick="closeModal('vtonModal')" class="p-1.5 rounded-full hover:bg-stone-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[75vh] overflow-y-auto pr-1">
+        <!-- Left: Composite Sheet Canvas -->
+        <div class="space-y-2">
+          <p class="text-xs font-semibold text-stone-700">1. Auto-Assembled Reference Composite</p>
+          <div class="bg-stone-100 rounded-2xl p-2 border border-stone-200 flex items-center justify-center">
+            <canvas id="vtonCompositeCanvas" width="768" height="960" class="w-full max-h-[380px] object-contain rounded-xl bg-white shadow-inner"></canvas>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="downloadVtonComposite()" class="flex-1 py-2 px-3 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold flex items-center justify-center gap-1.5">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Save Composite Image
+            </button>
+            <button onclick="copyVtonPrompt()" class="flex-1 py-2 px-3 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Precision Prompt
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Direct Try-On Output / Controls -->
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-semibold text-stone-700">2. Select Her Base Avatar Photo</label>
+            <select id="vtonAvatarSelect" onchange="renderVtonCompositeCanvas()" class="w-full mt-1 px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs"></select>
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-stone-700">3. Special Drape / Jewellery Instructions</label>
+            <textarea id="vtonPromptBox" rows="4" class="w-full mt-1 p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-[11px] font-mono text-stone-700"></textarea>
+          </div>
+
+          <button onclick="runDirectGeminiTryOn()" id="btnRunDirectVton" class="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+            <i data-lucide="sparkles" class="w-4 h-4"></i> Render Virtual Try-On (Gemini API)
+          </button>
+
+          <div id="vtonResultBox" class="border border-dashed border-stone-300 rounded-2xl p-3 text-center min-h-[160px] flex flex-col items-center justify-center bg-stone-50/50">
+            <p class="text-xs text-stone-500">Rendered try-on preview or uploaded result will appear here and save to the cache automatically.</p>
+            <label class="mt-2 px-3 py-1.5 rounded-xl bg-white border border-stone-300 text-stone-700 text-[11px] font-semibold cursor-pointer hover:bg-stone-100">
+              Or Attach Rendered Try-On Image
+              <input type="file" accept="image/*" class="hidden" onchange="attachRenderedVtonImage(event)" />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL 4: RECREATE PINTEREST / INSPIRATION LOOK ================= -->
+  <div id="inspoModal" class="modal-backdrop hidden">
+    <div class="modal-card max-w-xl w-full">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3 mb-4">
+        <div>
+          <h3 class="font-serif text-xl font-bold text-stone-900">"Shop Her Closet" — Recreate Any Look</h3>
+          <p class="text-xs text-stone-500">Upload any Pinterest, Instagram, or celebrity outfit photo to assemble the closest match from her wardrobe.</p>
+        </div>
+        <button onclick="closeModal('inspoModal')" class="p-1.5 rounded-full hover:bg-stone-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="space-y-4 max-h-[75vh] overflow-y-auto">
+        <label class="block border-2 border-dashed border-amber-300 bg-amber-50/50 rounded-2xl p-4 text-center cursor-pointer hover:bg-amber-50">
+          <i data-lucide="image-plus" class="w-6 h-6 text-amber-800 mx-auto mb-1"></i>
+          <span class="text-xs font-semibold text-amber-950">Upload Inspiration Photo</span>
+          <input type="file" accept="image/*" class="hidden" onchange="handleInspirationMatch(event)" />
+        </label>
+        <div id="inspoResultContainer" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL 5: SETTINGS, API KEY & 1-TAP BACKUP/SYNC ================= -->
+  <div id="settingsModal" class="modal-backdrop hidden">
+    <div class="modal-card max-w-lg w-full">
+      <div class="flex items-center justify-between border-b border-stone-200 pb-3 mb-4">
+        <h3 class="font-serif text-xl font-bold text-stone-900">Settings, AI Keys & Cloud Sync</h3>
+        <button onclick="closeModal('settingsModal')" class="p-1.5 rounded-full hover:bg-stone-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+          <div>
+            <p class="font-bold text-emerald-950">Persistent Browser Storage Protection</p>
+            <p id="storagePersistStatus" class="text-[11px] text-emerald-800">Checking IndexedDB lock status...</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-emerald-200 text-emerald-950 font-semibold text-[11px]">Active</span>
+        </div>
+
+        <div>
+          <label class="font-semibold text-stone-700 block mb-1">Google Gemini API Key (Free via Google AI Studio)</label>
+          <input id="settingsGeminiKey" type="password" placeholder="AIzaSy..." class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl font-mono text-xs" />
+          <p class="text-[11px] text-stone-500 mt-1">Stored strictly on your device. Powers auto-tagging, AI Couture Stylist, Inspiration Matching, and Try-On.</p>
+        </div>
+
+        <div>
+          <label class="font-semibold text-stone-700 block mb-1">Gemini Model Name</label>
+          <input id="settingsGeminiModel" type="text" value="gemini-2.5-flash" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl font-mono text-xs" />
+        </div>
+
+        <div>
+          <label class="font-semibold text-stone-700 block mb-1">Optional Cloud Sync Webhook URL (Google Apps Script / Supabase)</label>
+          <input id="settingsSyncUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl font-mono text-xs" />
+        </div>
+
+        <button onclick="saveAppSettings()" class="w-full py-2.5 rounded-xl bg-stone-900 text-white font-semibold hover:bg-stone-800">Save Settings</button>
+
+        <hr class="border-stone-200" />
+
+        <div class="space-y-2">
+          <p class="font-semibold text-stone-800">Device-to-Device Wardrobe Transfer (Laptop ↔ Her Phone)</p>
+          <p class="text-[11px] text-stone-500">Export the entire 200+ item catalog (including cutouts, looks, and makeup) into a single portable file to load onto her phone in 1 tap.</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="exportFullWardrobeJSON()" class="py-2.5 px-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold flex items-center justify-center gap-1.5">
+              <i data-lucide="download" class="w-4 h-4"></i> Export Backup File
+            </button>
+            <label class="py-2.5 px-3 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-950 font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
+              <i data-lucide="upload" class="w-4 h-4"></i> Import Backup File
+              <input type="file" accept=".json" class="hidden" onchange="importFullWardrobeJSON(event)" />
+            </label>
+          </div>
+          <button onclick="pushToCloudWebhook()" class="w-full py-2 px-3 rounded-xl border border-stone-300 hover:bg-stone-50 text-stone-700 font-semibold flex items-center justify-center gap-1.5 mt-1">
+            <i data-lucide="cloud-upload" class="w-4 h-4"></i> Sync with Cloud Webhook
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-full bg-stone-900 text-white text-xs font-semibold shadow-xl flex items-center gap-2">
+    <span id="toastMsg">Saved</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
