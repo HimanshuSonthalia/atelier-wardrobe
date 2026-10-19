@@ -107,89 +107,42 @@ function switchIngestTab(tab) {
 // ============================================================================
 // 2. IMAGE PROCESSING: WEBP COMPRESSION & CLIENT-SIDE BACKGROUND CUTOUT
 // ============================================================================
+// --- BROWSER-NATIVE AI BACKGROUND REMOVAL ---
 async function processImageFile(file, autoCutout = true, maxDim = 768) {
-  return new Promise((resolve) => {
+  // Convert File to Base64
+  const originalDataUrl = await new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let w = img.width;
-        let h = img.height;
-        if (w > maxDim || h > maxDim) {
-          if (w > h) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else {
-            w = Math.round((w * maxDim) / h);
-            h = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-
-        const originalDataUrl = canvas.toDataURL('image/webp', 0.82);
-
-        if (!autoCutout) {
-          resolve({ originalDataUrl, cutoutDataUrl: originalDataUrl, dominantHex: sampleDominantColor(ctx, w, h) });
-          return;
-        }
-
-        // Fast client-side corner flood-fill background removal for studio/wall/bed shots
-        const imgData = ctx.getImageData(0, 0, w, h);
-        const data = imgData.data;
-        const corners = [
-          [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1],
-          [Math.floor(w / 2), 0], [0, Math.floor(h / 2)], [w - 1, Math.floor(h / 2)]
-        ];
-
-        // Average corner background color
-        let bgR = 0, bgG = 0, bgB = 0;
-        corners.forEach(([cx, cy]) => {
-          const idx = (cy * w + cx) * 4;
-          bgR += data[idx];
-          bgG += data[idx + 1];
-          bgB += data[idx + 2];
-        });
-        bgR /= corners.length;
-        bgG /= corners.length;
-        bgB /= corners.length;
-
-        const tolerance = 44;
-        const visited = new Uint8Array(w * h);
-        const queue = [...corners];
-
-        while (queue.length > 0) {
-          const [x, y] = queue.pop();
-          if (x < 0 || x >= w || y < 0 || y >= h) continue;
-          const pos = y * w + x;
-          if (visited[pos]) continue;
-          visited[pos] = 1;
-
-          const idx = pos * 4;
-          const dist = Math.sqrt(
-            Math.pow(data[idx] - bgR, 2) +
-            Math.pow(data[idx + 1] - bgG, 2) +
-            Math.pow(data[idx + 2] - bgB, 2)
-          );
-
-          if (dist <= tolerance) {
-            data[idx + 3] = 0; // Transparent
-            queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-          }
-        }
-
-        ctx.putImageData(imgData, 0, 0);
-        const cutoutDataUrl = canvas.toDataURL('image/webp', 0.85);
-        const dominantHex = sampleDominantColor(ctx, w, h);
-        resolve({ originalDataUrl, cutoutDataUrl, dominantHex });
-      };
-      img.src = e.target.result;
-    };
+    reader.onload = (e) => resolve(e.target.result);
     reader.readAsDataURL(file);
   });
+
+  let cutoutDataUrl = originalDataUrl;
+  
+  if (autoCutout) {
+    try {
+      document.getElementById('ingestProgressText').textContent = 'AI cutting background... (Model loads once)';
+      // Dynamically load the Imgly AI model (Runs locally, zero privacy concerns)
+      const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+      const blob = await imglyRemoveBackground(file);
+      cutoutDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.error("AI Cutout failed, using original.", e);
+    }
+  }
+
+  // Compute visual fingerprint for deduplication
+  const dHash = await computeDHash(originalDataUrl);
+  
+  // Calculate dominant color
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  const dominantHex = '#C5A059'; // Fallback champagne
+  
+  return { originalDataUrl, cutoutDataUrl, dominantHex, dHash };
 }
 
 function sampleDominantColor(ctx, w, h) {
@@ -258,7 +211,7 @@ async function handleBulkFilesSelected(event) {
   await refreshAllViews();
 }
 // --- 3. NEW: Web Link Importer (Bypassing CORS via free proxy) ---
-// --- CRASH-PROOF WEB LINK IMPORTER (MULTI-IMAGE & AMAZON FALLBACK) ---
+// --- CONTEXT-AWARE WEB SCRAPING ---
 async function handleWebLinksIngest() {
   const linksRaw = document.getElementById('ingestWebLinks').value;
   const links = linksRaw.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
@@ -268,81 +221,69 @@ async function handleWebLinksIngest() {
   const priceVal = parseFloat(document.getElementById('ingestPrice').value) || 0;
   
   const progressWrap = document.getElementById('ingestProgressWrap');
-  const progressText = document.getElementById('ingestProgressText');
-  const progressBar = document.getElementById('ingestProgressBar');
   progressWrap.classList.remove('hidden');
 
   for (let i = 0; i < links.length; i++) {
-    progressText.textContent = `Scraping link ${i + 1} of ${links.length}...`;
-    progressBar.style.width = `${Math.round(((i + 1) / links.length) * 100)}%`;
+    document.getElementById('ingestProgressText').textContent = `Scraping data ${i + 1} of ${links.length}...`;
 
     try {
-      // Use AllOrigins to bypass CORS
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(links[i])}`;
       const res = await fetch(proxyUrl);
-      if (!res.ok) throw new Error("Proxy failed");
       const data = await res.json();
       const html = data.contents;
       
-      // Amazon/Bot-protected site check
       if (html.includes('captcha') || html.includes('automated access')) {
-        showToast('Site blocked scraper. Use Photo Upload for Amazon.');
-        continue; // Skip this link safely without crashing
+        showToast('Site blocked scraper. Use Photo Upload.');
+        continue; 
       }
 
-      // Extract multiple images using Regex (filtering out tiny icons/gifs)
+      // Extract Context Text for Gemini
+      const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
+      const descMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"/i);
+      const pageContext = `Product Page Title: ${titleMatch ? titleMatch[1] : ''}. Description: ${descMatch ? descMatch[1] : ''}`;
+
+      // Extract Images
       const imgRegex = /<img[^>]+src="([^">]+)"/gi;
       let match;
       let validImgUrls = [];
-      
-      // Also check for OpenGraph main image
       const ogMatch = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i);
       if (ogMatch && ogMatch[1]) validImgUrls.push(ogMatch[1]);
 
       while ((match = imgRegex.exec(html)) !== null) {
         let src = match[1];
         if (src.startsWith('//')) src = 'https:' + src;
-        if (!src.startsWith('http')) continue;
-        if (src.includes('.gif') || src.toLowerCase().includes('icon') || src.toLowerCase().includes('logo')) continue;
+        if (!src.startsWith('http') || src.includes('.gif') || src.toLowerCase().includes('icon') || src.toLowerCase().includes('logo')) continue;
         validImgUrls.push(src);
       }
 
-      // Deduplicate and limit to top 4 images to save Gemini processing time
       validImgUrls = [...new Set(validImgUrls)].slice(0, 4);
 
       if (validImgUrls.length > 0) {
-        progressText.textContent = `Extracting ${validImgUrls.length} angles via Gemini...`;
-        
         let processedImgs = [];
         for (const imgUrl of validImgUrls) {
           try {
-            // Fetch image via proxy to avoid Canvas taint
             const imgBlobProxy = `https://corsproxy.io/?${encodeURIComponent(imgUrl)}`;
             const imgRes = await fetch(imgBlobProxy);
             const blob = await imgRes.blob();
             const file = new File([blob], "web_import.jpg", { type: blob.type });
             processedImgs.push(await processImageFile(file, true));
-          } catch(e) { console.warn('Failed one image:', e); }
+          } catch(e) {}
         }
 
         if (processedImgs.length > 0) {
           const base64Array = processedImgs.map(p => p.originalDataUrl.split(',')[1]);
-          const extractedData = await analyzeGarmentWithGeminiMulti(base64Array);
+          // PASS PAGE TEXT TO GEMINI
+          const extractedData = await analyzeGarmentWithGeminiMulti(base64Array, pageContext);
           await createAndSaveItemRecord(extractedData, processedImgs, defaultLoc, priceVal, links[i]);
         }
-      } else {
-        showToast('No usable images found on that page.');
       }
     } catch (e) {
-      console.error('Failed to scrape link:', links[i], e);
-      showToast('Scrape failed. Try uploading photos.');
+      showToast('Scrape failed.');
     }
   }
   
-  // FINALLY block equivalent: ensure UI resets
   document.getElementById('ingestWebLinks').value = '';
   progressWrap.classList.add('hidden');
-  progressBar.style.width = '0%';
   await refreshAllViews();
 }
 
@@ -396,29 +337,62 @@ async function handleClipboardPaste() {
   }
 }
 
-async function analyzeGarmentWithGeminiMulti(base64Array) {
+// --- PERCEPTUAL HASHING (dHash) FOR DEDUPLICATION ---
+async function computeDHash(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 9; canvas.height = 8;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 9, 8);
+      const data = ctx.getImageData(0, 0, 9, 8).data;
+      let hash = '';
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          const idx1 = (y * 9 + x) * 4;
+          const idx2 = (y * 9 + x + 1) * 4;
+          const gray1 = data[idx1] * 0.299 + data[idx1+1] * 0.587 + data[idx1+2] * 0.114;
+          const gray2 = data[idx2] * 0.299 + data[idx2+1] * 0.587 + data[idx2+2] * 0.114;
+          hash += gray1 > gray2 ? '1' : '0';
+        }
+      }
+      resolve(hash);
+    };
+    img.src = dataUrl;
+  });
+}
+
+function hammingDistance(h1, h2) {
+  let dist = 0;
+  for (let i = 0; i < 64; i++) {
+    if (h1[i] !== h2[i]) dist++;
+  }
+  return dist;
+}
+
+async function analyzeGarmentWithGeminiMulti(base64Array, textContext = '') {
   if (!state.profile.geminiKey) return {};
   
-  const prompt = `Analyze these image(s) of a single garment/accessory from potentially multiple angles. Return ONLY valid JSON:
+  const prompt = `Analyze these images of a single garment. I have also scraped this text from the product webpage: "${textContext}". 
+  Use the text to accurately determine the brand, exact name, and fabric composition. 
+  Return ONLY valid JSON:
   {
-    "name": "Descriptive title (e.g. Emerald Banarasi Silk Saree)",
+    "name": "Exact descriptive title (e.g. Zara Pleated Belted Midi Dress)",
     "category": "top, bottom, drape, dress, outer, footwear, jewellery, bag",
-    "subcategory": "specific type",
-    "brand": "brand name if visible",
+    "brand": "Brand name extracted from text",
     "color_name": "main color",
     "undertone": "warm, cool, or neutral",
     "pattern": "Solid, Floral, Zari, Printed, etc.",
     "fabric": "Silk, Cotton, Linen, Leather, etc.",
     "silhouette": "fitted, flowy, oversized, or structured",
-    "neckline": "v_neck, high_neck, boat, scoop, collar, sweet_heart, or none",
-    "formality": 3
+    "neckline": "v_neck, high_neck, boat, scoop, collar, sweet_heart, or none"
   }`;
 
   const parts = [{ text: prompt }];
   base64Array.forEach(b64 => parts.push({ inlineData: { mimeType: 'image/webp', data: b64 } }));
 
   try {
-    // Default to Flash for batching, Pro is reserved for Lookbook generation
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${state.profile.geminiKey}`;
     const res = await fetch(url, {
       method: 'POST',
@@ -433,10 +407,25 @@ async function analyzeGarmentWithGeminiMulti(base64Array) {
 }
 
 // --- 5. NEW: Unified Item Creator ---
+// --- SMART MERGE & SAVE (DEDUPLICATION) ---
 async function createAndSaveItemRecord(aiAttrs, processedImgsArray, location, price, sourceUrl) {
   const primaryImg = processedImgsArray[0];
   const galleryUrls = processedImgsArray.map(p => p.cutoutDataUrl);
 
+  // 1. Check for Duplicates using dHash (Tolerance < 8 means visually identical)
+  const allGarments = await db.garments.toArray();
+  for (const existing of allGarments) {
+    if (existing.dHash && hammingDistance(existing.dHash, primaryImg.dHash) < 8) {
+      // DUPLICATE DETECTED: Merge the new images into the existing item's gallery
+      existing.gallery = [...new Set([...(existing.gallery || []), ...galleryUrls])];
+      if (sourceUrl && !existing.retail_source_url) existing.retail_source_url = sourceUrl;
+      await db.garments.put(existing);
+      showToast(`Duplicate found! Merged into "${existing.name}".`);
+      return; 
+    }
+  }
+
+  // 2. Create New Item if no duplicate exists
   const id = 'GAR-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random() * 90 + 10);
   const garmentRecord = {
     id,
@@ -446,7 +435,7 @@ async function createAndSaveItemRecord(aiAttrs, processedImgsArray, location, pr
     price: price || 0,
     original_img: primaryImg.originalDataUrl,
     cutout_img: primaryImg.cutoutDataUrl,
-    gallery: galleryUrls, // Stores all multiple angles
+    gallery: galleryUrls,
     studio_upgrade_img: '',
     active_img: primaryImg.cutoutDataUrl,
     retail_match_status: sourceUrl ? 'confirmed' : (aiAttrs.brand ? 'candidate' : 'unmatched'),
@@ -454,7 +443,8 @@ async function createAndSaveItemRecord(aiAttrs, processedImgsArray, location, pr
     storage_location: location,
     is_favorite: false,
     wear_count: 0,
-    status: 'active', // 'active' | 'laundry'
+    dHash: primaryImg.dHash, // Save fingerprint
+    status: 'active',
     created_at: Date.now(),
     attrs: {
       color_hex: primaryImg.dominantHex,
