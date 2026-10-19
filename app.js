@@ -55,6 +55,7 @@ const state = {
 // 1. INITIALIZATION & PERSISTENT STORAGE LOCK
 // ============================================================================
 window.addEventListener('DOMContentLoaded', async () => {
+  initThemeMode();
   lucide.createIcons();
   await initStoragePersistence();
   loadProfileUI();
@@ -753,7 +754,29 @@ async function renderStudioBoard() {
 
   evaluateLiveOutfitHarmony(itemMap);
 }
+// Theme Toggle State & Execution
+function initThemeMode() {
+  const savedTheme = localStorage.getItem('atelier_theme') || 'theme-plum';
+  document.body.className = savedTheme + ' antialiased selection:bg-champagne/30 selection:text-white pb-28';
+  updateThemeToggleIcon(savedTheme);
+}
 
+function toggleThemeMode() {
+  const current = localStorage.getItem('atelier_theme') || 'theme-plum';
+  const next = current === 'theme-plum' ? 'theme-obsidian' : 'theme-plum';
+  localStorage.setItem('atelier_theme', next);
+  document.body.className = next + ' antialiased selection:bg-champagne/30 selection:text-white pb-28';
+  updateThemeToggleIcon(next);
+  showToast(next === 'theme-plum' ? 'Switched to Deep Plum & Champagne' : 'Switched to Obsidian Gold');
+}
+
+function updateThemeToggleIcon(theme) {
+  const icon = document.getElementById('themeToggleIcon');
+  if (!icon) return;
+  // If dark plum, show sun icon to switch; if obsidian, show moon
+  icon.setAttribute('data-lucide', theme === 'theme-plum' ? 'sun' : 'moon');
+  lucide.createIcons();
+}
 async function cycleStudioSlot(slotKey, dir) {
   const catMap = {
     top: ['top'],

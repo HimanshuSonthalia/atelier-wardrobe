@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#110F0E" />
+  <meta name="theme-color" content="#1A0D15" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>L'ATELIER — Haute Couture Digital Wardrobe & Stylist</title>
@@ -12,16 +12,16 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            obsidian: '#110F0E',
-            charcoal: '#1C1917',
-            alabaster: '#FBF9F5',
-            silk: '#F3EFEA',
-            champagne: '#C5A059',
-            goldlight: '#E6C885',
-            burgundy: '#4A1525'
+            plum: '#1A0D15',
+            plumlight: '#2C1625',
+            plumcard: '#23121D',
+            champagne: '#DFBD7C',
+            goldlight: '#F4E3B5',
+            silkdark: '#381D2F'
           }
         }
       }
@@ -35,30 +35,37 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="bg-alabaster text-obsidian antialiased selection:bg-champagne/30 selection:text-obsidian pb-28">
+<body class="bg-plum text-goldlight antialiased selection:bg-champagne/30 selection:text-white pb-28">
 
   <!-- ULTRA-LUXURY TOP HEADER -->
   <header class="sticky top-0 z-30 luxury-header px-5 py-3.5 flex items-center justify-between">
     <div class="flex items-center gap-3.5">
-      <div class="w-10 h-10 rounded-full bg-obsidian border border-champagne/60 flex items-center justify-center font-serif text-xl font-medium tracking-widest text-goldlight shadow-lg">
+      <div class="w-10 h-10 rounded-full bg-plumcard border border-champagne/60 flex items-center justify-center font-serif text-xl font-medium tracking-widest text-goldlight shadow-lg">
         A
       </div>
       <div>
-        <h1 class="font-serif text-2xl font-semibold tracking-[0.18em] text-obsidian leading-none">L'ATELIER</h1>
+        <h1 class="font-serif text-2xl font-semibold tracking-[0.18em] text-white leading-none">L'ATELIER</h1>
         <p id="headerSubtitle" class="text-[9px] text-champagne font-semibold tracking-[0.25em] uppercase mt-1">Prive Couture &middot; Styling Suite</p>
       </div>
     </div>
 
     <div class="flex items-center gap-2.5">
-      <button onclick="openModal('inspoModal')" class="px-3.5 py-2 rounded-full bg-silk border border-champagne/40 hover:border-champagne text-obsidian text-[11px] font-medium tracking-wider uppercase flex items-center gap-1.5 transition-all shadow-sm" title="Recreate a Pinterest or Celebrity Look">
+      <!-- Dark/Light Theme Toggle Button -->
+      <button onclick="toggleThemeMode()" id="themeToggleBtn" class="p-2 rounded-full border border-champagne/40 hover:border-champagne text-champagne transition" title="Toggle Theme">
+        <i data-lucide="moon" id="themeToggleIcon" class="w-4 h-4"></i>
+      </button>
+
+      <button onclick="openModal('inspoModal')" class="px-3.5 py-2 rounded-full bg-plumcard border border-champagne/40 hover:border-champagne text-goldlight text-[11px] font-medium tracking-wider uppercase flex items-center gap-1.5 transition-all shadow-sm" title="Recreate a Pinterest or Celebrity Look">
         <i data-lucide="sparkles" class="w-3.5 h-3.5 text-champagne"></i>
         <span class="hidden sm:inline">Muse Match</span>
       </button>
+
       <button onclick="openModal('ingestModal')" class="btn-gold px-4 py-2 rounded-full text-[11px] font-semibold tracking-wider uppercase flex items-center gap-1.5 shadow-md transition-all">
         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
         <span>Curate Piece</span>
       </button>
-      <button onclick="openModal('settingsModal')" class="p-2 rounded-full border border-stone-300/80 hover:border-champagne text-stone-700 transition" title="Vault Settings & Cloud Sync">
+
+      <button onclick="openModal('settingsModal')" class="p-2 rounded-full border border-champagne/40 hover:border-champagne text-champagne transition" title="Vault Settings & Cloud Sync">
         <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
       </button>
     </div>
@@ -74,14 +81,14 @@
         <div class="luxury-card p-4 relative overflow-hidden">
           <p class="text-[9px] uppercase tracking-[0.22em] text-stone-400 font-semibold">Collection Volume</p>
           <div class="flex items-baseline gap-2 mt-1">
-            <p id="statTotalItems" class="text-3xl font-serif font-semibold text-obsidian">0</p>
+            <p id="statTotalItems" class="text-3xl font-serif font-semibold text-white">0</p>
             <span class="text-[11px] font-serif italic text-stone-400">pieces</span>
           </div>
         </div>
         <div class="luxury-card p-4 relative overflow-hidden">
           <p class="text-[9px] uppercase tracking-[0.22em] text-stone-400 font-semibold">Curated Ensembles</p>
           <div class="flex items-baseline gap-2 mt-1">
-            <p id="statTotalLooks" class="text-3xl font-serif font-semibold text-obsidian">0</p>
+            <p id="statTotalLooks" class="text-3xl font-serif font-semibold text-white">0</p>
             <span class="text-[11px] font-serif italic text-stone-400">looks</span>
           </div>
         </div>
@@ -91,18 +98,18 @@
             <i data-lucide="gem" class="w-3 h-3 text-champagne group-hover:scale-110 transition"></i>
           </p>
           <div class="flex items-baseline gap-2 mt-1">
-            <p id="statUnwornItems" class="text-3xl font-serif font-semibold text-obsidian">0</p>
+            <p id="statUnwornItems" class="text-3xl font-serif font-semibold text-white">0</p>
             <span class="text-[11px] font-serif italic text-champagne">awaiting debut</span>
           </div>
         </div>
         <div class="luxury-card p-4 cursor-pointer hover:border-champagne transition group" onclick="setClosetQuickFilter('upgrade_ready')">
-          <p class="text-[9px] uppercase tracking-[0.22em] text-emerald-800 font-semibold flex items-center justify-between">
+          <p class="text-[9px] uppercase tracking-[0.22em] text-emerald-400 font-semibold flex items-center justify-between">
             <span>Editorial Editions</span>
-            <i data-lucide="award" class="w-3 h-3 text-emerald-700"></i>
+            <i data-lucide="award" class="w-3 h-3 text-emerald-400"></i>
           </p>
           <div class="flex items-baseline gap-2 mt-1">
-            <p id="statStudioUpgrades" class="text-3xl font-serif font-semibold text-obsidian">0</p>
-            <span class="text-[11px] font-serif italic text-emerald-800">studio verified</span>
+            <p id="statStudioUpgrades" class="text-3xl font-serif font-semibold text-white">0</p>
+            <span class="text-[11px] font-serif italic text-emerald-300">studio verified</span>
           </div>
         </div>
       </div>
@@ -112,13 +119,13 @@
         <div class="flex flex-col sm:flex-row gap-2.5">
           <div class="relative flex-1">
             <i data-lucide="search" class="w-4 h-4 text-champagne absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-            <input id="closetSearch" type="text" oninput="renderCloset()" placeholder="Search by silhouette, textile, designer, colour or vault shelf..." class="w-full pl-10 pr-4 py-2.5 bg-alabaster border border-stone-200/90 rounded-full text-xs text-obsidian placeholder:text-stone-400 focus:outline-none focus:border-champagne transition" />
+            <input id="closetSearch" type="text" oninput="renderCloset()" placeholder="Search by silhouette, textile, designer, colour or vault shelf..." class="w-full pl-10 pr-4 py-2.5 bg-plumlight border border-champagne/30 rounded-full text-xs text-white placeholder:text-stone-400 focus:outline-none focus:border-champagne transition" />
           </div>
           <div class="flex gap-2">
-            <select id="closetLocationFilter" onchange="renderCloset()" class="flex-1 sm:flex-none bg-alabaster border border-stone-200/90 rounded-full px-3.5 py-2 text-xs text-stone-700 focus:outline-none focus:border-champagne">
+            <select id="closetLocationFilter" onchange="renderCloset()" class="flex-1 sm:flex-none bg-plumlight border border-champagne/30 rounded-full px-3.5 py-2 text-xs text-goldlight focus:outline-none focus:border-champagne">
               <option value="all">All Vault Locations</option>
             </select>
-            <select id="closetSort" onchange="renderCloset()" class="flex-1 sm:flex-none bg-alabaster border border-stone-200/90 rounded-full px-3.5 py-2 text-xs text-stone-700 focus:outline-none focus:border-champagne">
+            <select id="closetSort" onchange="renderCloset()" class="flex-1 sm:flex-none bg-plumlight border border-champagne/30 rounded-full px-3.5 py-2 text-xs text-goldlight focus:outline-none focus:border-champagne">
               <option value="newest">Recent Acquisitions</option>
               <option value="favorites">Signature Favourites</option>
               <option value="least_worn">Unworn First</option>
@@ -146,11 +153,11 @@
 
       <!-- Empty State -->
       <div id="closetEmptyState" class="hidden text-center py-16 luxury-card my-4 px-6">
-        <div class="w-14 h-14 rounded-full bg-obsidian text-goldlight border border-champagne flex items-center justify-center mx-auto mb-4 shadow-lg">
+        <div class="w-14 h-14 rounded-full bg-plumcard text-goldlight border border-champagne flex items-center justify-center mx-auto mb-4 shadow-lg">
           <i data-lucide="sparkles" class="w-6 h-6"></i>
         </div>
-        <h3 class="font-serif text-2xl font-semibold text-obsidian">Her Private Couture Archive</h3>
-        <p class="text-xs text-stone-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">Begin digitizing her collection of sarees, ensembles, fine jewellery, and handbags—or unveil our curated heritage capsule to experience the styling suite.</p>
+        <h3 class="font-serif text-2xl font-semibold text-white">Her Private Couture Archive</h3>
+        <p class="text-xs text-stone-400 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">Begin digitizing her collection of sarees, ensembles, fine jewellery, and handbags—or unveil our curated heritage capsule to experience the styling suite.</p>
         <div class="flex justify-center gap-3 flex-wrap">
           <button onclick="openModal('ingestModal')" class="btn-obsidian px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase flex items-center gap-2">
             <i data-lucide="camera" class="w-4 h-4 text-goldlight"></i> Digitize Wardrobe
@@ -168,7 +175,7 @@
       <div class="luxury-card p-4 mb-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2.5 flex-wrap flex-1">
-            <select id="studioOccasion" class="bg-alabaster border border-stone-200/90 rounded-full px-4 py-2 text-xs font-medium text-obsidian focus:border-champagne focus:outline-none">
+            <select id="studioOccasion" class="bg-plumlight border border-champagne/30 rounded-full px-4 py-2 text-xs font-medium text-goldlight focus:border-champagne focus:outline-none">
               <option value="Casual Chic">Occasion &middot; Daytime Elegance</option>
               <option value="Festive & Ethnic">Occasion &middot; Festive / Puja / Sangeet</option>
               <option value="Wedding & Grand">Occasion &middot; Grand Soiree &amp; Reception</option>
@@ -176,20 +183,20 @@
               <option value="Resort & Travel">Occasion &middot; Resort &amp; Riviera</option>
               <option value="Smart Formal">Occasion &middot; Executive Tailoring</option>
             </select>
-            <select id="studioWeather" class="bg-alabaster border border-stone-200/90 rounded-full px-4 py-2 text-xs font-medium text-obsidian focus:border-champagne focus:outline-none">
+            <select id="studioWeather" class="bg-plumlight border border-champagne/30 rounded-full px-4 py-2 text-xs font-medium text-goldlight focus:border-champagne focus:outline-none">
               <option value="warm">Climate &middot; Balmy &amp; Pleasant</option>
               <option value="hot">Climate &middot; Tropical Summer</option>
               <option value="cool">Climate &middot; Crisp Evening / Lounge</option>
               <option value="cold">Climate &middot; Winter Cashmere &amp; Layers</option>
             </select>
-            <select id="studioMode" onchange="toggleStudioGarmentMode()" class="bg-obsidian text-goldlight border border-champagne/50 rounded-full px-4 py-2 text-xs font-medium tracking-wide focus:outline-none">
+            <select id="studioMode" onchange="toggleStudioGarmentMode()" class="bg-plumcard text-goldlight border border-champagne/50 rounded-full px-4 py-2 text-xs font-medium tracking-wide focus:outline-none">
               <option value="separates">Silhouette &middot; Separates (Top + Bottom)</option>
               <option value="full">Silhouette &middot; Saree / Gown / Full Ensemble</option>
             </select>
           </div>
 
           <div class="flex items-center gap-2.5">
-            <button onclick="autoStyleSmartDeterministic()" class="px-4 py-2 rounded-full bg-silk border border-stone-300/80 hover:border-champagne text-obsidian text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition" title="Instant Rule-Based Harmony Spin">
+            <button onclick="autoStyleSmartDeterministic()" class="px-4 py-2 rounded-full bg-plumcard border border-champagne/40 hover:border-champagne text-goldlight text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5 transition" title="Instant Rule-Based Harmony Spin">
               <i data-lucide="shuffle" class="w-3.5 h-3.5 text-champagne"></i>
               <span>Atelier Spin</span>
             </button>
@@ -204,12 +211,12 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <!-- Left: Interactive Mix & Match Slot-Machine Canvas (7 cols) -->
         <div class="lg:col-span-7 luxury-card p-5">
-          <div class="flex items-center justify-between mb-4 pb-3 border-b border-stone-200/60">
+          <div class="flex items-center justify-between mb-4 pb-3 border-b border-champagne/20">
             <div>
               <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Bespoke Composition</span>
-              <h2 class="font-serif text-2xl font-semibold text-obsidian">The Styling Salon</h2>
+              <h2 class="font-serif text-2xl font-semibold text-white">The Styling Salon</h2>
             </div>
-            <button onclick="clearStudioLocks()" class="text-[11px] text-stone-500 hover:text-obsidian tracking-wider uppercase font-medium underline underline-offset-4">Release All Pins</button>
+            <button onclick="clearStudioLocks()" class="text-[11px] text-stone-400 hover:text-goldlight tracking-wider uppercase font-medium underline underline-offset-4">Release All Pins</button>
           </div>
 
           <!-- Slot Grid -->
@@ -218,9 +225,9 @@
           </div>
 
           <!-- Harmony & Stylist Live Score Bar -->
-          <div id="liveHarmonyBox" class="mt-5 p-4 rounded-2xl bg-obsidian text-alabaster border border-champagne/40 flex items-start justify-between gap-3 shadow-md">
+          <div id="liveHarmonyBox" class="mt-5 p-4 rounded-2xl bg-plumcard text-white border border-champagne/40 flex items-start justify-between gap-3 shadow-md">
             <div class="flex items-center gap-3.5">
-              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-champagne to-goldlight text-obsidian flex items-center justify-center shrink-0 font-serif font-bold text-lg shadow-inner" id="harmonyScoreBadge">9.4</div>
+              <div class="w-11 h-11 rounded-full bg-gradient-to-br from-champagne to-goldlight text-plum flex items-center justify-center shrink-0 font-serif font-bold text-lg shadow-inner" id="harmonyScoreBadge">9.4</div>
               <div>
                 <p class="text-xs font-semibold tracking-wider uppercase text-goldlight" id="harmonyTitle">Sartorial Balance &amp; Metallic Harmony</p>
                 <p class="text-[11px] text-stone-300 mt-0.5 leading-relaxed" id="harmonyDetails">Neckline geometry frames selected jewellery effortlessly. Undertones aligned.</p>
@@ -229,12 +236,12 @@
           </div>
 
           <!-- Makeup Director Card (Auto-Paired) -->
-          <div class="mt-4 p-4 rounded-2xl bg-silk/70 border border-champagne/30">
+          <div class="mt-4 p-4 rounded-2xl bg-plumlight/70 border border-champagne/30">
             <div class="flex items-center justify-between mb-2.5">
-              <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-burgundy flex items-center gap-1.5">
+              <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-champagne flex items-center gap-1.5">
                 <i data-lucide="Feather" class="w-3.5 h-3.5 text-champagne"></i> Paired Beauty &amp; Vanity Direction
               </span>
-              <button onclick="refreshMakeupSuggestion()" class="text-[10px] uppercase tracking-wider text-champagne hover:text-obsidian font-semibold">Cycle Palette &rarr;</button>
+              <button onclick="refreshMakeupSuggestion()" class="text-[10px] uppercase tracking-wider text-champagne hover:text-white font-semibold">Cycle Palette &rarr;</button>
             </div>
             <div id="studioMakeupCard" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
               <!-- Populated dynamically -->
@@ -255,16 +262,16 @@
         <!-- Right: AI Stylist Curated Proposals (5 cols) -->
         <div class="lg:col-span-5 space-y-5">
           <div class="luxury-card p-5">
-            <div class="flex items-center justify-between mb-2 pb-2.5 border-b border-stone-200/60">
+            <div class="flex items-center justify-between mb-2 pb-2.5 border-b border-champagne/20">
               <div>
                 <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Gemini 2.5 Pro Curation</span>
-                <h3 class="font-serif text-2xl font-semibold text-obsidian">Couture Proposals</h3>
+                <h3 class="font-serif text-2xl font-semibold text-white">Couture Proposals</h3>
               </div>
-              <span class="text-[10px] px-2.5 py-1 rounded-full bg-obsidian text-goldlight border border-champagne/40 font-semibold tracking-wider uppercase">3 Editions</span>
+              <span class="text-[10px] px-2.5 py-1 rounded-full bg-plumcard text-goldlight border border-champagne/40 font-semibold tracking-wider uppercase">3 Editions</span>
             </div>
-            <p class="text-xs text-stone-500 mb-4 leading-relaxed">Select <b>AI Couture Director</b> above to commission 3 bespoke ensembles tailored to her undertone, neckline geometry, and occasion.</p>
+            <p class="text-xs text-stone-400 mb-4 leading-relaxed">Select <b>AI Couture Director</b> above to commission 3 bespoke ensembles tailored to her undertone, neckline geometry, and occasion.</p>
             <div id="aiProposalsList" class="space-y-3.5">
-              <div class="text-center py-10 px-4 text-stone-400 text-xs border border-dashed border-champagne/40 rounded-2xl bg-alabaster/50 font-serif italic text-base">
+              <div class="text-center py-10 px-4 text-stone-400 text-xs border border-dashed border-champagne/40 rounded-2xl bg-plumlight/50 font-serif italic text-base">
                 Tap "AI Couture Director" or "Atelier Spin" to unveil bespoke combinations from her collection.
               </div>
             </div>
@@ -277,10 +284,10 @@
     <section id="tab-lookbook" class="tab-view hidden">
       <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div class="flex gap-2.5">
-          <button onclick="switchLookbookSubtab('saved')" id="subtabBtnSaved" class="px-5 py-2 rounded-full bg-obsidian text-goldlight border border-champagne/50 text-xs font-semibold tracking-wider uppercase shadow-sm">The Lookbook Archive</button>
-          <button onclick="switchLookbookSubtab('trips')" id="subtabBtnTrips" class="px-5 py-2 rounded-full bg-white border border-stone-300 text-stone-700 text-xs font-semibold tracking-wider uppercase">Voyage &amp; Trunk Capsules</button>
+          <button onclick="switchLookbookSubtab('saved')" id="subtabBtnSaved" class="px-5 py-2 rounded-full bg-plumcard text-goldlight border border-champagne/50 text-xs font-semibold tracking-wider uppercase shadow-sm">The Lookbook Archive</button>
+          <button onclick="switchLookbookSubtab('trips')" id="subtabBtnTrips" class="px-5 py-2 rounded-full bg-plumlight border border-champagne/30 text-goldlight text-xs font-semibold tracking-wider uppercase">Voyage &amp; Trunk Capsules</button>
         </div>
-        <select id="lookbookOccasionFilter" onchange="renderLookbook()" class="bg-white border border-stone-200 rounded-full px-4 py-2 text-xs font-medium text-obsidian focus:border-champagne focus:outline-none">
+        <select id="lookbookOccasionFilter" onchange="renderLookbook()" class="bg-plumlight border border-champagne/30 rounded-full px-4 py-2 text-xs font-medium text-goldlight focus:border-champagne focus:outline-none">
           <option value="all">All Occasions</option>
           <option value="Casual Chic">Daytime Elegance</option>
           <option value="Festive & Ethnic">Festive &amp; Heritage</option>
@@ -300,11 +307,11 @@
       <div id="lookbookTripsView" class="hidden space-y-5">
         <div class="luxury-card p-5">
           <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Concierge Packing</span>
-          <h3 class="font-serif text-2xl font-semibold text-obsidian">Commission a Voyage or Event Trunk</h3>
-          <p class="text-xs text-stone-500 mb-4 mt-0.5">Curate travel wardrobes with exact physical vault and shelf locations so every piece is packed effortlessly.</p>
+          <h3 class="font-serif text-2xl font-semibold text-white">Commission a Voyage or Event Trunk</h3>
+          <p class="text-xs text-stone-400 mb-4 mt-0.5">Curate travel wardrobes with exact physical vault and shelf locations so every piece is packed effortlessly.</p>
           <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <input id="tripNameInput" type="text" placeholder="e.g., Udaipur Wedding or Riviera Holiday" class="sm:col-span-2 px-4 py-2.5 bg-alabaster border border-stone-200 rounded-full text-xs focus:border-champagne focus:outline-none" />
-            <input id="tripDatesInput" type="text" placeholder="Duration (e.g., 5 Nights)" class="px-4 py-2.5 bg-alabaster border border-stone-200 rounded-full text-xs focus:border-champagne focus:outline-none" />
+            <input id="tripNameInput" type="text" placeholder="e.g., Udaipur Wedding or Riviera Holiday" class="sm:col-span-2 px-4 py-2.5 bg-plumlight border border-champagne/30 rounded-full text-xs text-white placeholder:text-stone-400 focus:border-champagne focus:outline-none" />
+            <input id="tripDatesInput" type="text" placeholder="Duration (e.g., 5 Nights)" class="px-4 py-2.5 bg-plumlight border border-champagne/30 rounded-full text-xs text-white placeholder:text-stone-400 focus:border-champagne focus:outline-none" />
             <button onclick="createNewTripCapsule()" class="btn-gold px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase">+ Create Trunk</button>
           </div>
         </div>
@@ -316,26 +323,26 @@
     <section id="tab-beauty" class="tab-view hidden space-y-6">
       <!-- Personal Style & Base Avatar Profile -->
       <div class="luxury-card p-5">
-        <div class="flex items-center justify-between mb-4 pb-3 border-b border-stone-200/60">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-champagne/20">
           <div>
             <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Bespoke Biometrics &amp; Colorimetry</span>
-            <h2 class="font-serif text-2xl font-semibold text-obsidian">Muse Profile &amp; Fitting Avatars</h2>
+            <h2 class="font-serif text-2xl font-semibold text-white">Muse Profile &amp; Fitting Avatars</h2>
           </div>
           <button onclick="saveProfileSettings()" class="btn-obsidian px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase">Save Profile</button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
           <div>
-            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Complexion Undertone</label>
-            <select id="profUndertone" onchange="saveProfileSettings()" class="w-full mt-1.5 px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl text-xs focus:border-champagne focus:outline-none">
-              <option value="warm">Warm (Golden / Honey — 24K Gold &amp; Earthy</option>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Complexion Undertone</label>
+            <select id="profUndertone" onchange="saveProfileSettings()" class="w-full mt-1.5 px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-xs text-goldlight focus:border-champagne focus:outline-none">
+              <option value="warm">Warm (Golden / Honey — 24K Gold &amp; Earthy)</option>
               <option value="neutral_warm">Neutral-Warm (Champagne, Rose Gold, Jewel)</option>
               <option value="cool">Cool (Alabaster / Rose — Platinum &amp; Pastels)</option>
             </select>
           </div>
           <div>
-            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Seasonal Color Matrix</label>
-            <select id="profSeasonPalette" onchange="saveProfileSettings()" class="w-full mt-1.5 px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl text-xs focus:border-champagne focus:outline-none">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Seasonal Color Matrix</label>
+            <select id="profSeasonPalette" onchange="saveProfileSettings()" class="w-full mt-1.5 px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-xs text-goldlight focus:border-champagne focus:outline-none">
               <option value="Deep Autumn">Deep Autumn (Burnished Gold, Rust, Emerald, Ivory)</option>
               <option value="Warm Spring">Warm Spring (Coral, Peach, Turquoise, Champagne)</option>
               <option value="Deep Winter">Deep Winter (Ruby, Sapphire, Emerald, Obsidian)</option>
@@ -343,17 +350,17 @@
             </select>
           </div>
           <div>
-            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Stature (cm — Calibrates Jewellery &amp; Drape)</label>
-            <input id="profHeightCm" type="number" value="162" onchange="saveProfileSettings()" class="w-full mt-1.5 px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl text-xs focus:border-champagne focus:outline-none" />
+            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-400">Stature (cm — Calibrates Jewellery &amp; Drape)</label>
+            <input id="profHeightCm" type="number" value="162" onchange="saveProfileSettings()" class="w-full mt-1.5 px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-xs text-white focus:border-champagne focus:outline-none" />
           </div>
         </div>
 
         <!-- Base Avatar Photos for Virtual Try-On -->
-        <div class="border-t border-stone-200/60 pt-4">
+        <div class="border-t border-champagne/20 pt-4">
           <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
             <div>
-              <span class="text-xs font-semibold text-obsidian">Virtual Fitting Room Base Portraits</span>
-              <p class="text-[11px] text-stone-500">Upload 1–3 full-length, well-lit portraits to serve as her personal mannequin canvas.</p>
+              <span class="text-xs font-semibold text-white">Virtual Fitting Room Base Portraits</span>
+              <p class="text-[11px] text-stone-400">Upload 1–3 full-length, well-lit portraits to serve as her personal mannequin canvas.</p>
             </div>
             <label class="btn-gold px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase cursor-pointer flex items-center gap-1.5">
               <i data-lucide="upload" class="w-3.5 h-3.5"></i> Add Base Portrait
@@ -366,10 +373,10 @@
 
       <!-- Owned Makeup & Vanity Collection -->
       <div class="luxury-card p-5">
-        <div class="flex items-center justify-between mb-4 pb-3 border-b border-stone-200/60">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-champagne/20">
           <div>
             <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Cosmetic Atelier</span>
-            <h2 class="font-serif text-2xl font-semibold text-obsidian">Personal Vanity &amp; Lip Archive</h2>
+            <h2 class="font-serif text-2xl font-semibold text-white">Personal Vanity &amp; Lip Archive</h2>
           </div>
           <button onclick="openAddMakeupModal()" class="btn-obsidian px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase flex items-center gap-1.5">
             <i data-lucide="plus" class="w-3.5 h-3.5 text-goldlight"></i> Add Cosmetic
@@ -406,44 +413,44 @@
   <!-- ================= MODAL 1: BULK INGESTION & AUTO-TAGGER ================= -->
   <div id="ingestModal" class="modal-backdrop hidden">
     <div class="modal-card max-w-2xl w-full">
-      <div class="flex items-center justify-between border-b border-stone-200/80 pb-3.5 mb-4">
+      <div class="flex items-center justify-between border-b border-champagne/20 pb-3.5 mb-4">
         <div>
           <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Automated Vision Curations</span>
-          <h3 class="font-serif text-2xl font-semibold text-obsidian">Acquire &amp; Digitize Pieces</h3>
+          <h3 class="font-serif text-2xl font-semibold text-white">Acquire &amp; Digitize Pieces</h3>
         </div>
-        <button onclick="closeModal('ingestModal')" class="p-2 rounded-full hover:bg-silk"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeModal('ingestModal')" class="p-2 rounded-full hover:bg-plumlight text-goldlight"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <div class="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-alabaster p-3.5 rounded-2xl border border-stone-200/80">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-plumlight p-3.5 rounded-2xl border border-champagne/30">
           <div>
-            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-500">Physical Vault / Shelf Location</label>
-            <input id="ingestDefaultLocation" type="text" placeholder="e.g., Main Almirah - Shelf 1, Velvet Safe" class="w-full mt-1 px-3.5 py-2 bg-white border border-stone-200 rounded-xl text-xs focus:border-champagne focus:outline-none" />
+            <label class="text-[10px] font-bold uppercase tracking-wider text-stone-300">Physical Vault / Shelf Location</label>
+            <input id="ingestDefaultLocation" type="text" placeholder="e.g., Main Almirah - Shelf 1, Velvet Safe" class="w-full mt-1 px-3.5 py-2 bg-plumcard border border-champagne/30 rounded-xl text-xs text-white focus:border-champagne focus:outline-none" />
           </div>
           <div class="flex flex-col justify-center gap-2 pt-1">
-            <label class="flex items-center gap-2 text-xs text-obsidian font-medium cursor-pointer">
-              <input id="ingestAutoCutout" type="checkbox" checked class="rounded accent-obsidian" />
+            <label class="flex items-center gap-2 text-xs text-goldlight font-medium cursor-pointer">
+              <input id="ingestAutoCutout" type="checkbox" checked class="rounded accent-champagne" />
               Auto-Isolate Garment Cutout
             </label>
-            <label class="flex items-center gap-2 text-xs text-obsidian font-medium cursor-pointer">
-              <input id="ingestUseGemini" type="checkbox" checked class="rounded accent-obsidian" />
+            <label class="flex items-center gap-2 text-xs text-goldlight font-medium cursor-pointer">
+              <input id="ingestUseGemini" type="checkbox" checked class="rounded accent-champagne" />
               Extract Couture Taxonomy (Gemini Vision)
             </label>
           </div>
         </div>
 
         <!-- Dropzone -->
-        <label class="block border-2 border-dashed border-champagne/60 hover:border-champagne bg-silk/40 rounded-3xl p-8 text-center cursor-pointer transition group">
-          <div class="w-14 h-14 rounded-full bg-obsidian text-goldlight border border-champagne flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition shadow-md">
+        <label class="block border-2 border-dashed border-champagne/60 hover:border-champagne bg-plumlight/40 rounded-3xl p-8 text-center cursor-pointer transition group">
+          <div class="w-14 h-14 rounded-full bg-plumcard text-goldlight border border-champagne flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition shadow-md">
             <i data-lucide="upload-cloud" class="w-6 h-6"></i>
           </div>
-          <p class="font-serif text-xl font-semibold text-obsidian">Select Garment, Saree or Jewellery Portraits</p>
-          <p class="text-xs text-stone-500 mt-1">Supports bulk curation (20–50 photos at once). Automatically optimizes &amp; queues.</p>
+          <p class="font-serif text-xl font-semibold text-white">Select Garment, Saree or Jewellery Portraits</p>
+          <p class="text-xs text-stone-400 mt-1">Supports bulk curation (20–50 photos at once). Automatically optimizes &amp; queues.</p>
           <input id="bulkFileInput" type="file" accept="image/*" multiple class="hidden" onchange="handleBulkFilesSelected(event)" />
         </label>
 
         <!-- Queue Progress -->
-        <div id="ingestProgressWrap" class="hidden space-y-2 bg-obsidian text-goldlight p-4 rounded-2xl border border-champagne/50">
+        <div id="ingestProgressWrap" class="hidden space-y-2 bg-plumcard text-goldlight p-4 rounded-2xl border border-champagne/50">
           <div class="flex items-center justify-between text-xs font-semibold">
             <span id="ingestProgressText">Cataloging 1 of 5...</span>
             <span id="ingestRateLimitBadge" class="text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-champagne/20 text-goldlight border border-champagne/40">Atelier Queue Active</span>
@@ -462,12 +469,12 @@
   <!-- ================= MODAL 2: ITEM DETAIL & 4-STATE STUDIO UPGRADE ================= -->
   <div id="itemDetailModal" class="modal-backdrop hidden">
     <div class="modal-card max-w-2xl w-full">
-      <div class="flex items-center justify-between border-b border-stone-200/80 pb-3.5 mb-4">
+      <div class="flex items-center justify-between border-b border-champagne/20 pb-3.5 mb-4">
         <div class="flex items-center gap-2.5">
-          <span id="detailItemIdBadge" class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-obsidian text-goldlight border border-champagne/40">GAR-001</span>
-          <h3 id="detailModalTitle" class="font-serif text-2xl font-semibold text-obsidian">Archive Dossier</h3>
+          <span id="detailItemIdBadge" class="text-[10px] font-mono px-2.5 py-1 rounded-full bg-plumcard text-goldlight border border-champagne/40">GAR-001</span>
+          <h3 id="detailModalTitle" class="font-serif text-2xl font-semibold text-white">Archive Dossier</h3>
         </div>
-        <button onclick="closeModal('itemDetailModal')" class="p-2 rounded-full hover:bg-silk"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeModal('itemDetailModal')" class="p-2 rounded-full hover:bg-plumlight text-goldlight"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <div id="itemDetailContent" class="max-h-[75vh] overflow-y-auto pr-1 space-y-4"></div>
@@ -477,23 +484,23 @@
   <!-- ================= MODAL 3: VIRTUAL TRY-ON (VTON) STUDIO ================= -->
   <div id="vtonModal" class="modal-backdrop hidden">
     <div class="modal-card max-w-3xl w-full">
-      <div class="flex items-center justify-between border-b border-stone-200/80 pb-3.5 mb-4">
+      <div class="flex items-center justify-between border-b border-champagne/20 pb-3.5 mb-4">
         <div>
           <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Bespoke Drape &amp; Silhouette Projection</span>
-          <h3 class="font-serif text-2xl font-semibold text-obsidian">The Private Fitting Room</h3>
+          <h3 class="font-serif text-2xl font-semibold text-white">The Private Fitting Room</h3>
         </div>
-        <button onclick="closeModal('vtonModal')" class="p-2 rounded-full hover:bg-silk"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeModal('vtonModal')" class="p-2 rounded-full hover:bg-plumlight text-goldlight"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-h-[75vh] overflow-y-auto pr-1">
         <!-- Left: Composite Sheet Canvas -->
         <div class="space-y-2.5">
-          <p class="text-[11px] font-bold uppercase tracking-wider text-stone-600">1. Couture Lookbook Plate</p>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-stone-300">1. Couture Lookbook Plate</p>
           <div class="studio-pedestal rounded-2xl p-2.5 border border-champagne/30 flex items-center justify-center">
-            <canvas id="vtonCompositeCanvas" width="768" height="960" class="w-full max-h-[380px] object-contain rounded-xl bg-white shadow-sm"></canvas>
+            <canvas id="vtonCompositeCanvas" width="768" height="960" class="w-full max-h-[380px] object-contain rounded-xl bg-plumcard shadow-sm"></canvas>
           </div>
           <div class="flex gap-2.5">
-            <button onclick="downloadVtonComposite()" class="flex-1 py-2.5 px-3 rounded-full bg-silk hover:bg-stone-200 text-obsidian text-xs font-semibold flex items-center justify-center gap-1.5">
+            <button onclick="downloadVtonComposite()" class="flex-1 py-2.5 px-3 rounded-full bg-plumlight hover:bg-plumcard text-goldlight text-xs font-semibold flex items-center justify-center gap-1.5 border border-champagne/30">
               <i data-lucide="download" class="w-3.5 h-3.5 text-champagne"></i> Save Plate
             </button>
             <button onclick="copyVtonPrompt()" class="btn-obsidian flex-1 py-2.5 px-3 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5">
@@ -505,22 +512,22 @@
         <!-- Right: Direct Try-On Output / Controls -->
         <div class="space-y-3.5">
           <div>
-            <label class="text-[11px] font-bold uppercase tracking-wider text-stone-600">2. Select Muse Portrait</label>
-            <select id="vtonAvatarSelect" onchange="renderVtonCompositeCanvas()" class="w-full mt-1 px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl text-xs"></select>
+            <label class="text-[11px] font-bold uppercase tracking-wider text-stone-300">2. Select Muse Portrait</label>
+            <select id="vtonAvatarSelect" onchange="renderVtonCompositeCanvas()" class="w-full mt-1 px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl text-xs text-goldlight focus:border-champagne focus:outline-none"></select>
           </div>
 
           <div>
-            <label class="text-[11px] font-bold uppercase tracking-wider text-stone-600">3. Tailoring &amp; Drape Directives</label>
-            <textarea id="vtonPromptBox" rows="4" class="w-full mt-1 p-3 bg-alabaster border border-stone-200 rounded-xl text-[11px] font-mono text-stone-700"></textarea>
+            <label class="text-[11px] font-bold uppercase tracking-wider text-stone-300">3. Tailoring &amp; Drape Directives</label>
+            <textarea id="vtonPromptBox" rows="4" class="w-full mt-1 p-3 bg-plumlight border border-champagne/30 rounded-xl text-[11px] font-mono text-goldlight focus:border-champagne focus:outline-none"></textarea>
           </div>
 
           <button onclick="runDirectGeminiTryOn()" id="btnRunDirectVton" class="btn-gold w-full py-3 px-4 rounded-full text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 shadow-md">
             <i data-lucide="sparkles" class="w-4 h-4"></i> Project Ensemble (Gemini API)
           </button>
 
-          <div id="vtonResultBox" class="border border-dashed border-champagne/50 rounded-2xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center bg-alabaster/60">
-            <p class="text-xs text-stone-500 font-serif italic text-sm">Rendered try-on projection will appear here and archive automatically.</p>
-            <label class="mt-3 px-4 py-1.5 rounded-full bg-white border border-champagne/50 text-obsidian text-[11px] font-semibold cursor-pointer hover:bg-silk">
+          <div id="vtonResultBox" class="border border-dashed border-champagne/50 rounded-2xl p-4 text-center min-h-[160px] flex flex-col items-center justify-center bg-plumlight/60">
+            <p class="text-xs text-stone-400 font-serif italic text-sm">Rendered try-on projection will appear here and archive automatically.</p>
+            <label class="mt-3 px-4 py-1.5 rounded-full bg-plumcard border border-champagne/50 text-goldlight text-[11px] font-semibold cursor-pointer hover:bg-plumlight">
               Or Attach Rendered Portrait
               <input type="file" accept="image/*" class="hidden" onchange="attachRenderedVtonImage(event)" />
             </label>
@@ -533,19 +540,19 @@
   <!-- ================= MODAL 4: RECREATE PINTEREST / INSPIRATION LOOK ================= -->
   <div id="inspoModal" class="modal-backdrop hidden">
     <div class="modal-card max-w-xl w-full">
-      <div class="flex items-center justify-between border-b border-stone-200/80 pb-3.5 mb-4">
+      <div class="flex items-center justify-between border-b border-champagne/20 pb-3.5 mb-4">
         <div>
           <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Editorial Interpretation</span>
-          <h3 class="font-serif text-2xl font-semibold text-obsidian">"Muse Match" — Shop Her Archive</h3>
+          <h3 class="font-serif text-2xl font-semibold text-white">"Muse Match" — Shop Her Archive</h3>
         </div>
-        <button onclick="closeModal('inspoModal')" class="p-2 rounded-full hover:bg-silk"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeModal('inspoModal')" class="p-2 rounded-full hover:bg-plumlight text-goldlight"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <div class="space-y-4 max-h-[75vh] overflow-y-auto">
-        <label class="block border-2 border-dashed border-champagne/60 bg-silk/40 rounded-2xl p-6 text-center cursor-pointer hover:border-champagne transition">
+        <label class="block border-2 border-dashed border-champagne/60 bg-plumlight/40 rounded-2xl p-6 text-center cursor-pointer hover:border-champagne transition">
           <i data-lucide="image-plus" class="w-7 h-7 text-champagne mx-auto mb-1.5"></i>
-          <span class="font-serif text-lg font-semibold text-obsidian block">Upload Editorial or Runway Reference</span>
-          <span class="text-[11px] text-stone-500">Gemini 2.5 Pro will assemble the closest match using pieces she already owns.</span>
+          <span class="font-serif text-lg font-semibold text-white block">Upload Editorial or Runway Reference</span>
+          <span class="text-[11px] text-stone-400">Gemini 2.5 Pro will assemble the closest match using pieces she already owns.</span>
           <input type="file" accept="image/*" class="hidden" onchange="handleInspirationMatch(event)" />
         </label>
         <div id="inspoResultContainer" class="space-y-3"></div>
@@ -556,16 +563,16 @@
   <!-- ================= MODAL 5: SETTINGS, API KEY & 1-TAP BACKUP/SYNC ================= -->
   <div id="settingsModal" class="modal-backdrop hidden">
     <div class="modal-card max-w-lg w-full">
-      <div class="flex items-center justify-between border-b border-stone-200/80 pb-3.5 mb-4">
+      <div class="flex items-center justify-between border-b border-champagne/20 pb-3.5 mb-4">
         <div>
           <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Atelier Configuration</span>
-          <h3 class="font-serif text-2xl font-semibold text-obsidian">Vault Keys &amp; Cloud Sync</h3>
+          <h3 class="font-serif text-2xl font-semibold text-white">Vault Keys &amp; Cloud Sync</h3>
         </div>
-        <button onclick="closeModal('settingsModal')" class="p-2 rounded-full hover:bg-silk"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeModal('settingsModal')" class="p-2 rounded-full hover:bg-plumlight text-goldlight"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <div class="space-y-4 text-xs">
-        <div class="p-3.5 rounded-2xl bg-obsidian text-alabaster border border-champagne/40 flex items-center justify-between">
+        <div class="p-3.5 rounded-2xl bg-plumcard text-white border border-champagne/40 flex items-center justify-between">
           <div>
             <p class="font-semibold text-goldlight tracking-wide">Permanent Vault Lock</p>
             <p id="storagePersistStatus" class="text-[11px] text-stone-300 mt-0.5">Checking IndexedDB lock status...</p>
@@ -574,29 +581,29 @@
         </div>
 
         <div>
-          <label class="font-bold uppercase tracking-wider text-[10px] text-stone-500 block mb-1">Google Gemini API Key</label>
-          <input id="settingsGeminiKey" type="password" placeholder="AIzaSy..." class="w-full px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl font-mono text-xs focus:border-champagne focus:outline-none" />
-          <p class="text-[11px] text-stone-500 mt-1">Auto-routes bulk ingestion to <b>Flash</b> and Couture Styling to <b>Gemini 2.5 Pro</b>.</p>
+          <label class="font-bold uppercase tracking-wider text-[10px] text-stone-300 block mb-1">Google Gemini API Key</label>
+          <input id="settingsGeminiKey" type="password" placeholder="AIzaSy..." class="w-full px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl font-mono text-xs text-white focus:border-champagne focus:outline-none" />
+          <p class="text-[11px] text-stone-400 mt-1">Auto-routes bulk ingestion to <b>Flash</b> and Couture Styling to <b>Gemini 2.5 Pro</b>.</p>
         </div>
 
         <div>
-          <label class="font-bold uppercase tracking-wider text-[10px] text-stone-500 block mb-1">Default Ingestion Model</label>
-          <input id="settingsGeminiModel" type="text" value="gemini-2.5-flash" class="w-full px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl font-mono text-xs focus:border-champagne focus:outline-none" />
+          <label class="font-bold uppercase tracking-wider text-[10px] text-stone-300 block mb-1">Default Ingestion Model</label>
+          <input id="settingsGeminiModel" type="text" value="gemini-2.5-flash" class="w-full px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl font-mono text-xs text-white focus:border-champagne focus:outline-none" />
         </div>
 
         <div>
-          <label class="font-bold uppercase tracking-wider text-[10px] text-stone-500 block mb-1">Cloud Sync Webhook URL (Google Apps Script)</label>
-          <input id="settingsSyncUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 bg-alabaster border border-stone-200 rounded-xl font-mono text-xs focus:border-champagne focus:outline-none" />
+          <label class="font-bold uppercase tracking-wider text-[10px] text-stone-300 block mb-1">Cloud Sync Webhook URL (Google Apps Script)</label>
+          <input id="settingsSyncUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 bg-plumlight border border-champagne/30 rounded-xl font-mono text-xs text-white focus:border-champagne focus:outline-none" />
         </div>
 
         <button onclick="saveAppSettings()" class="btn-obsidian w-full py-3 rounded-full font-semibold tracking-widest uppercase">Save Configuration</button>
 
-        <hr class="border-stone-200/80" />
+        <hr class="border-champagne/20" />
 
         <div class="space-y-2.5">
-          <p class="font-bold uppercase tracking-wider text-[10px] text-stone-500">Archive Portability (Laptop &harr; Her iPhone/Android)</p>
+          <p class="font-bold uppercase tracking-wider text-[10px] text-stone-300">Archive Portability (Laptop &harr; Her iPhone/Android)</p>
           <div class="grid grid-cols-2 gap-2.5">
-            <button onclick="exportFullWardrobeJSON()" class="py-2.5 px-3 rounded-full bg-silk hover:bg-stone-200 text-obsidian font-semibold flex items-center justify-center gap-1.5 border border-stone-300/80">
+            <button onclick="exportFullWardrobeJSON()" class="py-2.5 px-3 rounded-full bg-plumlight hover:bg-plumcard text-goldlight font-semibold flex items-center justify-center gap-1.5 border border-champagne/30">
               <i data-lucide="download" class="w-3.5 h-3.5 text-champagne"></i> Export Vault
             </button>
             <label class="btn-gold py-2.5 px-3 rounded-full font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
@@ -604,7 +611,7 @@
               <input type="file" accept=".json" class="hidden" onchange="importFullWardrobeJSON(event)" />
             </label>
           </div>
-          <button onclick="pushToCloudWebhook()" class="w-full py-2.5 px-3 rounded-full border border-champagne/60 hover:bg-silk text-obsidian font-semibold flex items-center justify-center gap-1.5 mt-1">
+          <button onclick="pushToCloudWebhook()" class="w-full py-2.5 px-3 rounded-full border border-champagne/60 hover:bg-plumlight text-goldlight font-semibold flex items-center justify-center gap-1.5 mt-1">
             <i data-lucide="cloud-upload" class="w-4 h-4 text-champagne"></i> Backup to Google Drive Cloud
           </button>
         </div>
@@ -613,7 +620,7 @@
   </div>
 
   <!-- LUXURY TOAST NOTIFICATION -->
-  <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 hidden px-5 py-2.5 rounded-full bg-obsidian text-goldlight border border-champagne/60 text-xs font-medium tracking-wider uppercase shadow-2xl flex items-center gap-2">
+  <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 hidden px-5 py-2.5 rounded-full bg-plumcard text-goldlight border border-champagne/60 text-xs font-medium tracking-wider uppercase shadow-2xl flex items-center gap-2">
     <span class="w-2 h-2 rounded-full bg-champagne"></span>
     <span id="toastMsg">Archived</span>
   </div>
