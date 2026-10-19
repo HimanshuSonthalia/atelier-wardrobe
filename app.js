@@ -702,10 +702,16 @@ async function openItemDetailModal(id) {
       </div>
 
       <div class="grid grid-cols-2 gap-4 my-3">
-        <div class="bg-plumcard p-3 rounded-xl border ${item.active_img === item.cutout_img ? 'border-champagne ring-1 ring-champagne' : 'border-champagne/20'} text-center transition">
-          <p class="text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-2">Original Cutout</p>
-          <img src="${item.cutout_img}" class="h-36 mx-auto object-contain cutout-bg rounded-lg" />
-          <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="mt-3 w-full py-2 rounded-lg bg-plumlight hover:bg-silkdark border border-champagne/20 text-white text-[10px] font-semibold tracking-wider uppercase transition">Use Original</button>
+        <div class="bg-plumcard p-3 rounded-xl border ${item.active_img === item.cutout_img || item.active_img === item.original_img ? 'border-champagne ring-1 ring-champagne' : 'border-champagne/20'} text-center transition">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Your Photo</p>
+            <div class="flex bg-plumlight rounded-md p-0.5">
+              <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="px-2 py-1 rounded text-[8px] font-bold uppercase ${item.active_img === item.cutout_img ? 'bg-champagne text-plum' : 'text-stone-400'}">Cutout</button>
+              <button onclick="setPrimaryGarmentImage('${item.id}', 'raw')" class="px-2 py-1 rounded text-[8px] font-bold uppercase ${item.active_img === item.original_img ? 'bg-champagne text-plum' : 'text-stone-400'}">Raw</button>
+            </div>
+          </div>
+          <img src="${item.active_img === item.studio_upgrade_img ? item.cutout_img : item.active_img}" class="h-36 mx-auto object-contain cutout-bg rounded-lg" />
+          <p class="text-[9px] text-stone-500 mt-2 italic font-serif">Toggle 'Raw' if cutout missed details.</p>
         </div>
 
         <div class="bg-plumcard p-3 rounded-xl border ${item.studio_upgrade_img && item.active_img === item.studio_upgrade_img ? 'border-emerald-400 ring-1 ring-emerald-400' : 'border-champagne/20'} text-center flex flex-col justify-between transition">
@@ -816,14 +822,31 @@ async function setPrimaryGarmentImage(id, type, imgUrl = null) {
   if (type === 'studio' && item.studio_upgrade_img) {
     item.active_img = item.studio_upgrade_img;
   } else if (type === 'gallery' && imgUrl) {
-    item.active_img = imgUrl; // Allows setting one of the multi-angle photos as the main cover
+    item.active_img = imgUrl; 
+  } else if (type === 'raw') {
+    item.active_img = item.original_img; // Restores the background!
   } else {
-    item.active_img = item.cutout_img;
+    item.active_img = item.cutout_img; // The AI Cutout
   }
   await db.garments.put(item);
   openItemDetailModal(id);
   renderCloset();
 }
+
+// Inside openItemDetailModal(id), replace the "Original Cutout" div block with this:
+/* 
+<div class="bg-plumcard p-3 rounded-xl border ${item.active_img === item.cutout_img || item.active_img === item.original_img ? 'border-champagne ring-1 ring-champagne' : 'border-champagne/20'} text-center transition">
+  <div class="flex items-center justify-between mb-2">
+    <p class="text-[9px] font-bold uppercase tracking-widest text-stone-400">Your Photo</p>
+    <div class="flex bg-plumlight rounded-md p-0.5">
+      <button onclick="setPrimaryGarmentImage('${item.id}', 'cutout')" class="px-2 py-1 rounded text-[8px] font-bold uppercase ${item.active_img === item.cutout_img ? 'bg-champagne text-plum' : 'text-stone-400'}">Cutout</button>
+      <button onclick="setPrimaryGarmentImage('${item.id}', 'raw')" class="px-2 py-1 rounded text-[8px] font-bold uppercase ${item.active_img === item.original_img ? 'bg-champagne text-plum' : 'text-stone-400'}">Raw</button>
+    </div>
+  </div>
+  <img src="${item.active_img === item.studio_upgrade_img ? item.cutout_img : item.active_img}" class="h-36 mx-auto object-contain cutout-bg rounded-lg" />
+  <p class="text-[9px] text-stone-500 mt-2 italic font-serif">Toggle 'Raw' if cutout missed details.</p>
+</div>
+*/
 
 // Helper: Save Detail Edits (Updated to save Price)
 async function saveItemDetailEdits(id) {
@@ -2052,106 +2075,152 @@ async function seedDemoWardrobe() {
 // ============================================================================
 // ATELIER AI AUDITOR (SELF-HEALING BACKGROUND ENGINE)
 // ============================================================================
+// ============================================================================
+// ATELIER AI AUDITOR (MULTI-SWEEP AUTONOMOUS ENGINE)
+// ============================================================================
 async function runAIAuditor() {
-  if (!state.profile.geminiKey) {
-    showToast('API Key required. Please add it in Settings.');
-    return;
-  }
+  if (!state.profile.geminiKey) { showToast('API Key required in Settings.'); return; }
 
   const btn = document.getElementById('btnRunAudit');
   const wrap = document.getElementById('auditProgressWrap');
   const text = document.getElementById('auditProgressText');
   const bar = document.getElementById('auditProgressBar');
 
-  // Lock UI
   btn.disabled = true;
-  btn.classList.add('opacity-50', 'cursor-not-allowed');
   wrap.classList.remove('hidden');
-  text.textContent = 'Scanning archive for incomplete dossiers...';
-  bar.style.width = '5%';
 
-  // 1. Fetch all garments and find candidates that need enrichment
-  const allGarments = await db.garments.toArray();
-  const candidates = allGarments.filter(g => 
-    g.name === 'Bespoke Piece' || 
-    g.name === 'Styled Piece' || 
-    !g.attrs?.fabric || 
-    g.attrs?.fabric === 'Woven' || 
-    g.attrs?.fabric === 'Standard' ||
-    g.attrs?.pattern === 'Solid' && g.name.includes('Bespoke') // Generic defaults
-  );
-
-  if (candidates.length === 0) {
-    text.textContent = 'Archive is fully enriched. No audit needed.';
-    bar.style.width = '100%';
-    setTimeout(() => {
-      wrap.classList.add('hidden');
-      btn.disabled = false;
-      btn.classList.remove('opacity-50', 'cursor-not-allowed');
-    }, 3000);
-    return;
+  let allGarments = await db.garments.toArray();
+  
+  // ------------------------------------------------------------------------
+  // SWEEP 1: BACKGROUND REMOVAL HEALING
+  // ------------------------------------------------------------------------
+  const needsCutout = allGarments.filter(g => g.original_img === g.cutout_img && !g.gallery?.length);
+  if (needsCutout.length > 0) {
+    text.textContent = `Sweep 1: Isolating backgrounds for ${needsCutout.length} items...`;
+    const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+    
+    for (let i = 0; i < needsCutout.length; i++) {
+      bar.style.width = `${Math.round(((i + 1) / needsCutout.length) * 100)}%`;
+      try {
+        const item = needsCutout[i];
+        const res = await fetch(item.original_img);
+        const blob = await res.blob();
+        const cutoutBlob = await imglyRemoveBackground(blob);
+        
+        const cutoutDataUrl = await new Promise(r => {
+          const reader = new FileReader();
+          reader.onloadend = () => r(reader.result);
+          reader.readAsDataURL(cutoutBlob);
+        });
+        
+        item.cutout_img = cutoutDataUrl;
+        if (item.active_img === item.original_img) item.active_img = cutoutDataUrl;
+        await db.garments.put(item);
+      } catch(e) { console.warn('Cutout sweep failed for an item'); }
+    }
+    allGarments = await db.garments.toArray(); // Refresh list
   }
 
-  showToast(`Found ${candidates.length} pieces needing enrichment.`);
-
-  // 2. Loop through candidates and heal them via Gemini
-  for (let i = 0; i < candidates.length; i++) {
-    const item = candidates[i];
-    text.textContent = `Enriching ${i + 1} of ${candidates.length}: Modifying ${item.id}...`;
-    bar.style.width = `${Math.round(((i + 1) / candidates.length) * 100)}%`;
-
-    try {
-      // Gather images (up to 4 multi-angle images if they exist, or just the active one)
-      const imagesToAnalyze = item.gallery && item.gallery.length > 0 
-        ? item.gallery.slice(0, 4).map(img => img.split(',')[1]) 
-        : [item.active_img.split(',')[1]];
-
-      // Pass a special context string instructing deep visual audit
-      const auditContext = `Deep visual audit: Identify the exact garment silhouette, fabric texture, and pattern. Suggest a highly descriptive, luxurious haute-couture name to replace generic labels.`;
-      
-      const enrichedData = await analyzeGarmentWithGeminiMulti(imagesToAnalyze, auditContext);
-      
-      let updated = false;
-      
-      // Merge enriched data
-      if (enrichedData.name && enrichedData.name !== 'Bespoke Piece' && !enrichedData.name.includes('Bespoke')) {
-        item.name = enrichedData.name;
-        updated = true;
+  // ------------------------------------------------------------------------
+  // SWEEP 2: MULTI-ANGLE & DUPLICATE MERGING (Gemini Vision Check)
+  // ------------------------------------------------------------------------
+  text.textContent = 'Sweep 2: Scanning for unlinked multi-angle photos...';
+  bar.style.width = '30%';
+  
+  // Group items created within 15 minutes of each other (likely a batch upload)
+  allGarments.sort((a, b) => b.created_at - a.created_at);
+  const timeBatches = [];
+  let currentBatch = [];
+  
+  for (const g of allGarments) {
+    if (currentBatch.length === 0) {
+      currentBatch.push(g);
+    } else {
+      const lastTime = currentBatch[currentBatch.length - 1].created_at;
+      if (Math.abs(lastTime - g.created_at) < 15 * 60 * 1000 && currentBatch.length < 8) {
+        currentBatch.push(g); // Within 15 mins, max 8 items per Gemini prompt
+      } else {
+        timeBatches.push(currentBatch);
+        currentBatch = [g];
       }
-      if (enrichedData.category) { item.category = enrichedData.category; updated = true; }
-      if (enrichedData.brand) { item.brand = enrichedData.brand; updated = true; }
-      
-      if (Object.keys(enrichedData).length > 0) {
-        item.attrs = { ...item.attrs, ...enrichedData };
-        updated = true;
-      }
+    }
+  }
+  if (currentBatch.length > 0) timeBatches.push(currentBatch);
 
-      // Save healed item back to IndexedDB
-      if (updated) {
+  // Ask Gemini to find overlapping items in recent batches
+  const recentBatches = timeBatches.slice(0, 3); // Only check the 3 most recent batches to save API calls
+  for (const batch of recentBatches) {
+    if (batch.length > 1) {
+      const prompt = `Analyze these ${batch.length} images. Some are different angles (front, back, label, close-up) of the exact same physical product. Return a JSON array of arrays grouping the INDEX NUMBERS (0 to ${batch.length - 1}) of images that belong to the same product. Example: {"groups": [[0, 1, 2], [3], [4, 5]]}`;
+      
+      const parts = [{ text: prompt }];
+      batch.forEach(g => parts.push({ inlineData: { mimeType: 'image/webp', data: g.active_img.split(',')[1] } }));
+      
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${state.profile.geminiModel}:generateContent?key=${state.profile.geminiKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: 'application/json' } })
+        });
+        const data = await res.json();
+        const parsed = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{"groups":[]}');
+        
+        // Execute Merges
+        for (const group of parsed.groups) {
+          if (group.length > 1) {
+            const masterItem = batch[group[0]];
+            for (let i = 1; i < group.length; i++) {
+              const duplicateItem = batch[group[i]];
+              // Merge gallery & wear counts
+              masterItem.gallery = [...new Set([...(masterItem.gallery || []), duplicateItem.active_img, ...(duplicateItem.gallery || [])])];
+              masterItem.wear_count = (masterItem.wear_count || 0) + (duplicateItem.wear_count || 0);
+              await db.garments.delete(duplicateItem.id); // Delete the duplicate
+            }
+            await db.garments.put(masterItem);
+            showToast(`Merged multi-angle photos for: ${masterItem.name}`);
+          }
+        }
+        await new Promise(r => setTimeout(r, 4500)); // Rate limit
+      } catch(e) {}
+    }
+  }
+
+  // ------------------------------------------------------------------------
+  // SWEEP 3: METADATA & TAGGING ENRICHMENT
+  // ------------------------------------------------------------------------
+  allGarments = await db.garments.toArray(); // Refresh after deletions
+  const enrichCandidates = allGarments.filter(g => 
+    g.name.includes('Bespoke') || g.name.includes('Styled') || !g.attrs?.fabric || g.attrs?.fabric === 'Woven'
+  );
+
+  if (enrichCandidates.length > 0) {
+    text.textContent = `Sweep 3: Enriching metadata for ${enrichCandidates.length} items...`;
+    for (let i = 0; i < enrichCandidates.length; i++) {
+      bar.style.width = `${Math.round(((i + 1) / enrichCandidates.length) * 100)}%`;
+      const item = enrichCandidates[i];
+      try {
+        const imagesToAnalyze = item.gallery?.length ? item.gallery.slice(0, 3).map(img => img.split(',')[1]) : [item.active_img.split(',')[1]];
+        const enrichedData = await analyzeGarmentWithGeminiMulti(imagesToAnalyze, `Deep visual audit. Suggest a descriptive haute-couture name.`);
+        
+        if (enrichedData.name && !enrichedData.name.includes('Bespoke')) item.name = enrichedData.name;
+        if (enrichedData.category) item.category = enrichedData.category;
+        if (enrichedData.brand) item.brand = enrichedData.brand;
+        if (Object.keys(enrichedData).length > 0) item.attrs = { ...item.attrs, ...enrichedData };
+        
         await db.garments.put(item);
-      }
-
-      // Rate Limiter: Wait ~4.5 seconds between calls to respect Gemini Flash's 15 Requests Per Minute limit
-      if (i < candidates.length - 1) {
-        await new Promise(r => setTimeout(r, 4500));
-      }
-
-    } catch (e) {
-      console.warn(`Audit failed for item ${item.id}`, e);
+        if (i < enrichCandidates.length - 1) await new Promise(r => setTimeout(r, 4500));
+      } catch (e) {}
     }
   }
 
   // Finish
-  text.textContent = 'Audit Complete! Archive fully enriched.';
+  text.textContent = 'Audit Complete! Archive is fully optimized.';
   bar.style.width = '100%';
-  
-  // Refresh UI to show the new names/tags
   await refreshAllViews();
-  showToast('AI Auditor finished enriching your wardrobe!');
   
   setTimeout(() => {
     wrap.classList.add('hidden');
     btn.disabled = false;
-    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-  }, 3500);
+  }, 3000);
 }
