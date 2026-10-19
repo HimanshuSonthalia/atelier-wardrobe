@@ -423,6 +423,35 @@
           <!-- Calendar populated by JS -->
         </div>
       </div>
+      <!-- ... (Keep your OOTD Calendar card here) ... -->
+
+      <!-- ATELIER AI AUDITOR (Self-Healing Engine) -->
+      <div class="luxury-card p-5 mt-6">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-champagne/20">
+          <div>
+            <span class="text-[9px] uppercase tracking-[0.24em] text-champagne font-semibold">Self-Healing Library</span>
+            <h2 class="font-serif text-2xl font-semibold text-white">Atelier AI Auditor</h2>
+          </div>
+          <button onclick="runAIAuditor()" id="btnRunAudit" class="btn-gold px-4 py-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase shadow-md flex items-center gap-2 transition">
+            <i data-lucide="bot" class="w-4 h-4"></i> Enrich Archive
+          </button>
+        </div>
+        <p class="text-[11px] text-stone-400 mb-4 leading-relaxed">
+          The AI Auditor quietly scans your archive for generic labels, missed details, or incomplete metadata. It enriches your database in the background to ensure your Styling Salon is operating with flawless haute-couture intelligence.
+        </p>
+        
+        <!-- Audit Progress UI -->
+        <div id="auditProgressWrap" class="hidden space-y-2 bg-plumcard text-goldlight p-4 rounded-2xl border border-champagne/50">
+          <div class="flex items-center justify-between text-xs font-semibold">
+            <span id="auditProgressText">Scanning archive...</span>
+            <span class="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-champagne/20 text-goldlight border border-champagne/40">Audit Active</span>
+          </div>
+          <div class="w-full h-1.5 bg-stone-800 rounded-full overflow-hidden">
+            <div id="auditProgressBar" class="h-full bg-gradient-to-r from-champagne to-goldlight transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </section>
     </section>
 
   </main>

@@ -2048,3 +2048,110 @@ async function seedDemoWardrobe() {
   await refreshAllViews();
   showToast('Sample Luxury Wardrobe & Vanity loaded!');
 }
+
+// ============================================================================
+// ATELIER AI AUDITOR (SELF-HEALING BACKGROUND ENGINE)
+// ============================================================================
+async function runAIAuditor() {
+  if (!state.profile.geminiKey) {
+    showToast('API Key required. Please add it in Settings.');
+    return;
+  }
+
+  const btn = document.getElementById('btnRunAudit');
+  const wrap = document.getElementById('auditProgressWrap');
+  const text = document.getElementById('auditProgressText');
+  const bar = document.getElementById('auditProgressBar');
+
+  // Lock UI
+  btn.disabled = true;
+  btn.classList.add('opacity-50', 'cursor-not-allowed');
+  wrap.classList.remove('hidden');
+  text.textContent = 'Scanning archive for incomplete dossiers...';
+  bar.style.width = '5%';
+
+  // 1. Fetch all garments and find candidates that need enrichment
+  const allGarments = await db.garments.toArray();
+  const candidates = allGarments.filter(g => 
+    g.name === 'Bespoke Piece' || 
+    g.name === 'Styled Piece' || 
+    !g.attrs?.fabric || 
+    g.attrs?.fabric === 'Woven' || 
+    g.attrs?.fabric === 'Standard' ||
+    g.attrs?.pattern === 'Solid' && g.name.includes('Bespoke') // Generic defaults
+  );
+
+  if (candidates.length === 0) {
+    text.textContent = 'Archive is fully enriched. No audit needed.';
+    bar.style.width = '100%';
+    setTimeout(() => {
+      wrap.classList.add('hidden');
+      btn.disabled = false;
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }, 3000);
+    return;
+  }
+
+  showToast(`Found ${candidates.length} pieces needing enrichment.`);
+
+  // 2. Loop through candidates and heal them via Gemini
+  for (let i = 0; i < candidates.length; i++) {
+    const item = candidates[i];
+    text.textContent = `Enriching ${i + 1} of ${candidates.length}: Modifying ${item.id}...`;
+    bar.style.width = `${Math.round(((i + 1) / candidates.length) * 100)}%`;
+
+    try {
+      // Gather images (up to 4 multi-angle images if they exist, or just the active one)
+      const imagesToAnalyze = item.gallery && item.gallery.length > 0 
+        ? item.gallery.slice(0, 4).map(img => img.split(',')[1]) 
+        : [item.active_img.split(',')[1]];
+
+      // Pass a special context string instructing deep visual audit
+      const auditContext = `Deep visual audit: Identify the exact garment silhouette, fabric texture, and pattern. Suggest a highly descriptive, luxurious haute-couture name to replace generic labels.`;
+      
+      const enrichedData = await analyzeGarmentWithGeminiMulti(imagesToAnalyze, auditContext);
+      
+      let updated = false;
+      
+      // Merge enriched data
+      if (enrichedData.name && enrichedData.name !== 'Bespoke Piece' && !enrichedData.name.includes('Bespoke')) {
+        item.name = enrichedData.name;
+        updated = true;
+      }
+      if (enrichedData.category) { item.category = enrichedData.category; updated = true; }
+      if (enrichedData.brand) { item.brand = enrichedData.brand; updated = true; }
+      
+      if (Object.keys(enrichedData).length > 0) {
+        item.attrs = { ...item.attrs, ...enrichedData };
+        updated = true;
+      }
+
+      // Save healed item back to IndexedDB
+      if (updated) {
+        await db.garments.put(item);
+      }
+
+      // Rate Limiter: Wait ~4.5 seconds between calls to respect Gemini Flash's 15 Requests Per Minute limit
+      if (i < candidates.length - 1) {
+        await new Promise(r => setTimeout(r, 4500));
+      }
+
+    } catch (e) {
+      console.warn(`Audit failed for item ${item.id}`, e);
+    }
+  }
+
+  // Finish
+  text.textContent = 'Audit Complete! Archive fully enriched.';
+  bar.style.width = '100%';
+  
+  // Refresh UI to show the new names/tags
+  await refreshAllViews();
+  showToast('AI Auditor finished enriching your wardrobe!');
+  
+  setTimeout(() => {
+    wrap.classList.add('hidden');
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+  }, 3500);
+}
