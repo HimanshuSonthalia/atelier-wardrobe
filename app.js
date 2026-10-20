@@ -108,17 +108,26 @@ function switchIngestTab(tab) {
 // BULLETPROOF AI BACKGROUND REMOVAL ENGINE
 // ============================================================================
 
-// Core AI Helper: Forces the browser to find the AI model files correctly
-async function runImglyCutout(imageBlob) {
-  const { default: imglyRemoveBackground } = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
-  const config = {
-    publicPath: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/',
-    debug: false
-  };
-  return await imglyRemoveBackground(imageBlob, config);
+// ============================================================================
+// CLOUD AI BACKGROUND REMOVAL ENGINE (BRIA RMBG-1.4)
+// ============================================================================
+
+// Core Cloud API Helper
+async function runCloudCutout(imageBlob) {
+  const hfKey = localStorage.getItem('atelier_hf_key');
+  if (!hfKey) throw new Error("Hugging Face API Key missing in Settings.");
+
+  const response = await fetch("https://api-inference.huggingface.co/models/briaai/RMBG-1.4", {
+    headers: { Authorization: `Bearer ${hfKey}` },
+    method: "POST",
+    body: imageBlob,
+  });
+  
+  if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+  return await response.blob();
 }
 
-// Helper to safely convert base64 to Blob to prevent fetch() crashes
+// Helper to safely convert base64 to Blob
 function base64ToBlob(base64Data, contentType) {
   const byteCharacters = atob(base64Data);
   const byteNumbers = new Array(byteCharacters.length);
@@ -140,23 +149,67 @@ async function processImageFile(file, autoCutout = true, maxDim = 768) {
   
   if (autoCutout) {
     try {
-      document.getElementById('ingestProgressText').textContent = 'AI cutting background... (Downloading model)';
-      const cutoutBlob = await runImglyCutout(file);
+      document.getElementById('ingestProgressText').textContent = 'Cloud AI cutting background...';
+      const cutoutBlob = await runCloudCutout(file);
       cutoutDataUrl = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
         reader.readAsDataURL(cutoutBlob);
       });
     } catch (e) {
-      console.warn("AI Cutout failed on upload, using original.", e);
+      console.warn("Cloud Cutout failed on upload, using original.", e);
+      showToast('Cloud cutout failed. Check API Key.');
     }
   }
 
   const dHash = await computeDHash(originalDataUrl);
-  const dominantHex = '#C5A059'; // Fallback champagne
+  const dominantHex = '#C5A059'; 
   
   return { originalDataUrl, cutoutDataUrl, dominantHex, dHash };
 }
+
+// 2. Manual Refine Button
+async function regenerateCutout(id) {
+  const item = await db.garments.get(id);
+  showToast('Connecting to Cloud AI...');
+  
+  try {
+    const base64Data = item.original_img.split(',')[1];
+    const mimeType = item.original_img.match(/data:([^;]+);/)[1];
+    const blob = base64ToBlob(base64Data, mimeType);
+    
+    const cutoutBlob = await runCloudCutout(blob);
+    
+    const cutoutDataUrl = await new Promise(r => {
+      const reader = new FileReader();
+      reader.onloadend = () => r(reader.result);
+      reader.readAsDataURL(cutoutBlob);
+    });
+    
+    item.cutout_img = cutoutDataUrl;
+    item.active_img = cutoutDataUrl;
+    await db.garments.put(item);
+    
+    openItemDetailModal(id);
+    renderCloset();
+    showToast('Cutout perfected via Cloud AI!');
+  } catch (e) {
+    console.error("Refine Error:", e);
+    showToast(`Failed: ${e.message}`); 
+  }
+}
+
+// Helper to safely convert base64 to Blob to prevent fetch() crashes
+function base64ToBlob(base64Data, contentType) {
+  const byteCharacters = atob(base64Data);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  return new Blob([new Uint8Array(byteNumbers)], { type: contentType });
+}
+
+
 function sampleDominantColor(ctx, w, h) {
   const data = ctx.getImageData(Math.floor(w * 0.3), Math.floor(h * 0.3), Math.max(1, Math.floor(w * 0.4)), Math.max(1, Math.floor(h * 0.4))).data;
   let r = 0, g = 0, b = 0, count = 0;
@@ -1885,6 +1938,9 @@ function loadProfileUI() {
   document.getElementById('settingsGeminiKey').value = state.profile.geminiKey;
   document.getElementById('settingsGeminiModel').value = state.profile.geminiModel;
   document.getElementById('settingsSyncUrl').value = state.profile.syncUrl;
+  if (document.getElementById('settingsHfKey')) {
+    document.getElementById('settingsHfKey').value = localStorage.getItem('atelier_hf_key') || '';
+  }
 }
 
 function saveProfileSettings() {
@@ -1904,6 +1960,7 @@ function saveAppSettings() {
   localStorage.setItem('atelier_gemini_key', state.profile.geminiKey);
   localStorage.setItem('atelier_gemini_model', state.profile.geminiModel);
   localStorage.setItem('atelier_sync_url', state.profile.syncUrl);
+  localStorage.setItem('atelier_hf_key', document.getElementById('settingsHfKey').value.trim());
   closeModal('settingsModal');
   showToast('API & Sync settings saved');
 }
@@ -2236,35 +2293,4 @@ async function runAIAuditor() {
     wrap.classList.add('hidden');
     btn.disabled = false;
   }, 3000);
-}
-
-// --- ON-DEMAND AI CUTOUT REFINEMENT ---
-async function regenerateCutout(id) {
-  const item = await db.garments.get(id);
-  showToast('AI Auditor is refining the cutout. Please wait...');
-  
-  try {
-    const base64Data = item.original_img.split(',')[1];
-    const mimeType = item.original_img.match(/data:([^;]+);/)[1];
-    const blob = base64ToBlob(base64Data, mimeType);
-    
-    const cutoutBlob = await runImglyCutout(blob);
-    
-    const cutoutDataUrl = await new Promise(r => {
-      const reader = new FileReader();
-      reader.onloadend = () => r(reader.result);
-      reader.readAsDataURL(cutoutBlob);
-    });
-    
-    item.cutout_img = cutoutDataUrl;
-    item.active_img = cutoutDataUrl;
-    await db.garments.put(item);
-    
-    openItemDetailModal(id);
-    renderCloset();
-    showToast('Cutout perfected!');
-  } catch (e) {
-    console.error("Refine Error:", e);
-    showToast('Failed to refine cutout. Check browser console.');
-  }
 }
