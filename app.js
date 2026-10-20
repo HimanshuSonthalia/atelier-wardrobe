@@ -112,12 +112,15 @@ function switchIngestTab(tab) {
 async function runCloudCutout(imageBlob) {
   const hfKey = localStorage.getItem('atelier_hf_key');
   if (!hfKey || !hfKey.startsWith('hf_')) {
-    throw new Error("Missing or Invalid Hugging Face Key (Must start with hf_)");
+    throw new Error("Missing Hugging Face Key in Settings (Must start with hf_)");
   }
+
+  // Route through proxy to prevent local CORS blocking
+  const apiUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api-inference.huggingface.co/models/briaai/RMBG-1.4");
 
   let retries = 3;
   while (retries > 0) {
-    const response = await fetch("https://api-inference.huggingface.co/models/briaai/RMBG-1.4", {
+    const response = await fetch(apiUrl, {
       headers: { 
         "Authorization": `Bearer ${hfKey}`,
         "Content-Type": imageBlob.type || "image/jpeg"
@@ -126,35 +129,62 @@ async function runCloudCutout(imageBlob) {
       body: imageBlob,
     });
     
-    // Success! Return the perfectly cut blob
     if (response.ok) {
       return await response.blob();
     }
 
-    // Handle Errors (Parse the Hugging Face JSON response)
-    const errData = await response.json().catch(() => ({}));
+    const errData = await response.json().catch(() => ({ error: response.statusText }));
 
-    // Detect "Cold Start" Sleep Mode
+    // Auto-wake if model is sleeping
     if (response.status === 503 && errData.estimated_time) {
       const waitTime = Math.ceil(errData.estimated_time);
       showToast(`Waking up Cloud AI... waiting ${waitTime}s`);
-      
-      // Pause Javascript execution for the exact time requested by the server
       await new Promise(r => setTimeout(r, (waitTime * 1000) + 1500));
       retries--;
-      continue; // Try again loop
+      continue; 
     }
 
-    // Detect Invalid API Key
-    if (response.status === 401) {
-      throw new Error("Unauthorized: Hugging Face API Key is invalid.");
-    }
-
-    // Any other error
     throw new Error(errData.error || `Server Error ${response.status}`);
   }
   
-  throw new Error("Cloud AI Timeout. Please try again.");
+  throw new Error("Cloud AI Timeout.");
+}
+
+async function regenerateCutout(id) {
+  const item = await db.garments.get(id);
+  showToast('Connecting to Cloud AI...');
+  
+  try {
+    if (!item.original_img) throw new Error("No original image found.");
+    
+    const base64Data = item.original_img.split(',')[1];
+    const mimeType = item.original_img.match(/data:([^;]+);/)[1];
+    const blob = base64ToBlob(base64Data, mimeType);
+    
+    if (blob.size > 5 * 1024 * 1024) throw new Error("Image over 5MB limit.");
+    
+    const cutoutBlob = await runCloudCutout(blob);
+    
+    const cutoutDataUrl = await new Promise(r => {
+      const reader = new FileReader();
+      reader.onloadend = () => r(reader.result);
+      reader.readAsDataURL(cutoutBlob);
+    });
+    
+    item.cutout_img = cutoutDataUrl;
+    item.active_img = cutoutDataUrl;
+    await db.garments.put(item);
+    
+    openItemDetailModal(id);
+    renderCloset();
+    showToast('Cutout perfected via Cloud AI!');
+    
+  } catch (e) {
+    console.error("Refine Error:", e);
+    // Explicit error message pops up here now
+    alert(`Refine Error: ${e.message}`); 
+    showToast(`Refine Failed: ${e.message}`); 
+  }
 }
 
 // Helper to safely convert base64 to Blob
@@ -196,46 +226,6 @@ async function processImageFile(file, autoCutout = true, maxDim = 768) {
   const dominantHex = '#C5A059'; 
   
   return { originalDataUrl, cutoutDataUrl, dominantHex, dHash };
-}
-
-// 2. Manual Refine Button
-async function regenerateCutout(id) {
-  const item = await db.garments.get(id);
-  
-  // Disable button visually to prevent spam-clicking
-  showToast('Connecting to Cloud AI...');
-  
-  try {
-    const base64Data = item.original_img.split(',')[1];
-    const mimeType = item.original_img.match(/data:([^;]+);/)[1];
-    const blob = base64ToBlob(base64Data, mimeType);
-    
-    // Check if the image is massive (HF rejects blobs over ~5MB)
-    if (blob.size > 5 * 1024 * 1024) {
-        throw new Error("Image too large. Must be under 5MB.");
-    }
-    
-    const cutoutBlob = await runCloudCutout(blob);
-    
-    const cutoutDataUrl = await new Promise(r => {
-      const reader = new FileReader();
-      reader.onloadend = () => r(reader.result);
-      reader.readAsDataURL(cutoutBlob);
-    });
-    
-    item.cutout_img = cutoutDataUrl;
-    item.active_img = cutoutDataUrl;
-    await db.garments.put(item);
-    
-    openItemDetailModal(id);
-    renderCloset();
-    showToast('Cutout perfected via Cloud AI!');
-    
-  } catch (e) {
-    console.error("Refine Error Details:", e);
-    // Explicitly show the exact failure reason in the toast
-    showToast(`Refine Failed: ${e.message}`); 
-  }
 }
 
 // Helper to safely convert base64 to Blob to prevent fetch() crashes
