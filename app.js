@@ -109,21 +109,25 @@ function switchIngestTab(tab) {
 // ============================================================================
 
 // Core Cloud API Helper
+// ============================================================================
+// CLOUD AI BACKGROUND REMOVAL (DIRECT CONNECTION)
+// ============================================================================
+
 async function runCloudCutout(imageBlob) {
   const hfKey = localStorage.getItem('atelier_hf_key');
   if (!hfKey || !hfKey.startsWith('hf_')) {
-    throw new Error("Missing Hugging Face Key in Settings (Must start with hf_)");
+    throw new Error("Missing or invalid Hugging Face Key in Settings.");
   }
 
-  // Route through proxy to prevent local CORS blocking
-  const apiUrl = "https://corsproxy.io/?" + encodeURIComponent("https://api-inference.huggingface.co/models/briaai/RMBG-1.4");
+  // Direct connection. Hugging Face natively supports CORS.
+  // The proxy was stripping your API key.
+  const apiUrl = "https://api-inference.huggingface.co/models/briaai/RMBG-1.4";
 
   let retries = 3;
   while (retries > 0) {
     const response = await fetch(apiUrl, {
       headers: { 
-        "Authorization": `Bearer ${hfKey}`,
-        "Content-Type": imageBlob.type || "image/jpeg"
+        "Authorization": `Bearer ${hfKey}`
       },
       method: "POST",
       body: imageBlob,
@@ -135,10 +139,10 @@ async function runCloudCutout(imageBlob) {
 
     const errData = await response.json().catch(() => ({ error: response.statusText }));
 
-    // Auto-wake if model is sleeping
+    // Auto-wake if the free-tier model is sleeping
     if (response.status === 503 && errData.estimated_time) {
       const waitTime = Math.ceil(errData.estimated_time);
-      showToast(`Waking up Cloud AI... waiting ${waitTime}s`);
+      showToast(`Waking up Cloud GPU... waiting ${waitTime}s`);
       await new Promise(r => setTimeout(r, (waitTime * 1000) + 1500));
       retries--;
       continue; 
@@ -147,21 +151,22 @@ async function runCloudCutout(imageBlob) {
     throw new Error(errData.error || `Server Error ${response.status}`);
   }
   
-  throw new Error("Cloud AI Timeout.");
+  throw new Error("Cloud AI Timeout. GPU did not wake up in time.");
 }
 
 async function regenerateCutout(id) {
   const item = await db.garments.get(id);
-  showToast('Connecting to Cloud AI...');
+  showToast('Connecting to Cloud GPU...');
   
   try {
-    if (!item.original_img) throw new Error("No original image found.");
+    if (!item.original_img) throw new Error("No original raw image found.");
     
     const base64Data = item.original_img.split(',')[1];
     const mimeType = item.original_img.match(/data:([^;]+);/)[1];
     const blob = base64ToBlob(base64Data, mimeType);
     
-    if (blob.size > 5 * 1024 * 1024) throw new Error("Image over 5MB limit.");
+    // Hugging Face rejects blobs over 10MB
+    if (blob.size > 8 * 1024 * 1024) throw new Error("Image exceeds 8MB size limit.");
     
     const cutoutBlob = await runCloudCutout(blob);
     
@@ -177,13 +182,13 @@ async function regenerateCutout(id) {
     
     openItemDetailModal(id);
     renderCloset();
-    showToast('Cutout perfected via Cloud AI!');
+    showToast('Cutout perfected via Cloud GPU!');
     
   } catch (e) {
     console.error("Refine Error:", e);
-    // Explicit error message pops up here now
-    alert(`Refine Error: ${e.message}`); 
-    showToast(`Refine Failed: ${e.message}`); 
+    // Explicit browser alert so we know EXACTLY what HF is saying
+    alert(`Refine Failed: ${e.message}`); 
+    showToast('Refine Failed. See alert.'); 
   }
 }
 
